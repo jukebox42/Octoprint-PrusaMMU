@@ -24,6 +24,9 @@ $(function() {
   function PrusaMMU2ViewModel(parameters) {
     var self = this;
 
+    var iconId = "#navbar_plugin_prusammu_icon";
+    var textId = "#navbar_plugin_prusammu_text";
+
     self.settings = parameters[0];
     self.loginState = parameters[1];
 
@@ -83,24 +86,21 @@ $(function() {
     }
 
     self._set_nav = function() {
-      $("#navbar_plugin_prusammu_icon").toggleClass("fa-pen-fancy", self.mmu.state === "LOADED");
-      $("#navbar_plugin_prusammu_icon").toggleClass("fa-long-arrow-alt-up", self.mmu.state === "UNLOADING");
-      $("#navbar_plugin_prusammu_icon").toggleClass("fa-long-arrow-alt-down", self.mmu.state === "LOADING");
-      $("#navbar_plugin_prusammu_icon").toggleClass("fa-fingerprint", self.mmu.state === "PAUSED_USER");
-      $("#navbar_plugin_prusammu_icon").toggleClass("fa-exclamation-triangle", self.mmu.state === "ATTENTION");
-      if (
-        self.mmu.state === "LOADED" ||
-        self.mmu.state === "UNLOADING" ||
-        self.mmu.state === "LOADING" ||
-        self.mmu.state === "PAUSED_USER"
-      ) {
-        $("#navbar_plugin_prusammu_icon").show();
+      var showIconStates = ["LOADED", "UNLOADING", "LOADING", "PAUSED_USER", "ATTENTION"];
+      $(iconId)
+        .toggleClass("fa-pen-fancy", self.mmu.state === "LOADED")
+        .toggleClass("fa-long-arrow-alt-up", self.mmu.state === "UNLOADING")
+        .toggleClass("fa-long-arrow-alt-down", self.mmu.state === "LOADING")
+        .toggleClass("fa-fingerprint", self.mmu.state === "PAUSED_USER")
+        .toggleClass("fa-exclamation-triangle", self.mmu.state === "ATTENTION");
+      if (showIconStates.indexOf(self.mmu.state) !== -1) {
+        $(iconId).show();
       } else {
-        $("#navbar_plugin_prusammu_icon").hide();
+        $(iconId).hide();
       }
 
-      $("#navbar_plugin_prusammu_icon").css({color: self.mmu.color});
-      $("#navbar_plugin_prusammu_text").html(self.mmu.text);
+      $(iconId).css({color: self.mmu.color});
+      $(textId).html(self.mmu.text);
     }
 
     // ===== Modal =====
@@ -112,22 +112,25 @@ $(function() {
       if (filament.color()) {
         color = filament.color();
       }
-      return '<i class="fas fa-pen-fancy" style="color: ' + color + '"></i> ' +
+      return "<i class=\"fas fa-pen-fancy\" style=\"color: " + color + "\"></i> " +
       gettext("Filament " + filament.id() + ": ") + filament.name();
     }
 
     self._showPrompt = function() {
       var filament = self.settings.settings.plugins.prusammu.filament();
+
+      // TODO: would be good to show disabled options. I wonder if I can
+      var selections = {};
+      filament.forEach((f, i) => {
+        if (f.enabled()) {
+          selections[i] = self._draw_selection(f);
+        }
+      });
+
       var opts = {
         title: gettext("Prusa MMU"),
         message: gettext("Select the filament spool:"),
-        selections: {
-          0: self._draw_selection(filament[0]),
-          1: self._draw_selection(filament[1]),
-          2: self._draw_selection(filament[2]),
-          3: self._draw_selection(filament[3]),
-          4: self._draw_selection(filament[4])
-        },
+        selections: selections,
         onselect: function(index) {
           if (index > -1) {
             self._select(index);
@@ -155,8 +158,7 @@ $(function() {
     // ===== Get Updates from backend =====
 
     self.onDataUpdaterPluginMessage = function(plugin, data) {
-      if (!self.loginState.isUser()) return;
-      if (plugin !== "prusammu") {
+      if (!self.loginState.isUser() || plugin !== "prusammu") {
         return;
       }
 

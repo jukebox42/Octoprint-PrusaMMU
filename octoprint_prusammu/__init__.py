@@ -42,6 +42,18 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     self._logger.info("on_after_startup")
     self._set_class_vars()
 
+    # Handle initial load, see if we were already using the mmu2
+    # TODO: We need to NOT load these if the printer is not printing.
+    #       think handling crashes and what not. otherwise we will show
+    #       a false state.
+    try:
+      self.mmuTool = self._settings.get(["mmuTool"])
+      self._update_nav(self._settings.get(["mmuState"]))
+      self._logger.info("on_after_startup " + self.mmuState + " " + self.mmuTool)
+    except:
+      self._logger.info("on_after_startup FAILED TO SET STATE AND TOOL")
+      pass
+
   # ======== TemplatePlugin ========
 
   def get_template_configs(self):
@@ -113,8 +125,15 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       return
     self.mmuState = state
 
-    # TODO: Save this somewhere so it can be fetched on load. Who keeps an octoprint open?
-    # self._logger.info("_update_nav S: " + self.mmuState + " T: " + str(self.mmuTool))
+    # Save the mmu state into settings.
+    # TODO: Settings isnt the right place to save these but this is what we've got
+    self._logger.info("_update_nav S: " + self.mmuState + " T: " + str(self.mmuTool))
+    try:
+      self._settings.set("mmuState", self.mmuState)
+      self._settings.set("mmuState", self.mmuTool)
+    except:
+      self._logger.info("_update_nav FAILED TO WRITE")
+      pass
 
     self._plugin_manager.send_plugin_message(
       self._identifier,
@@ -189,12 +208,14 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       displayActiveFilament=True,
       defaultFilament=-1,
       filament=[
-        dict(name="", color="", id=1), # 1
-        dict(name="", color="", id=2), # 2
-        dict(name="", color="", id=3), # 3
-        dict(name="", color="", id=4), # 4
-        dict(name="", color="", id=5)  # 5
-      ]
+        dict(name="", color="", enabled=True, id=1), # 1
+        dict(name="", color="", enabled=True, id=2), # 2
+        dict(name="", color="", enabled=True, id=3), # 3
+        dict(name="", color="", enabled=True, id=4), # 4
+        dict(name="", color="", enabled=True, id=5)  # 5
+      ],
+      mmuState = "OK",
+      mmuTool = "",
     )
 
   def on_settings_save(self, data):
