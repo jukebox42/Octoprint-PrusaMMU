@@ -1,0 +1,54 @@
+<form class="form-horizontal">
+  <div class="control-group">
+    <label class="control-label">{{ _('Timeout') }}</label>
+    <div class="controls">
+      <div class="input-append">
+        <input type="number" class="input-mini text-right" class="input-block-level" data-bind="value: settings.plugins.prusammu.timeout">
+        <span class="add-on">{{ _('seconds') }}</span>
+			</div>
+      <span class="help-block"><small>{{ _('After this given time, the dialog closes and the print will go on as usual. This means you have to select the filament at your printer.') }}</small></span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label">{{ _('Display Active Filament') }}</label>
+    <div class="controls">
+      <input type="checkbox" data-bind="checked: settings.plugins.prusammu.displayActiveFilament" />
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label">{{ _('Use Default Filament') }}</label>
+    <div class="controls">
+      <input type="checkbox" data-bind="checked: settings.plugins.prusammu.useDefaultFilament" />
+    </div>
+    <span class="help-block"><small>{{ _('Enabling this will default the filament to use once the dialog times out.') }}</small></span>
+  </div>
+
+  <div class="control-group" data-bind="visible: settings.plugins.prusammu.useDefaultFilament">
+    <label class="control-label">{{ _('Default Filament') }}</label>
+    <div class="controls">
+      <select data-bind="
+        options: settings.plugins.prusammu.filament,
+        optionsText: function(fill) {
+          return 'Filament ' + fill.id() + ': ' + fill.name()
+        },
+        optionsValue: 'id',
+        value: settings.plugins.prusammu.defaultFilament,
+        optionsCaption: 'Choose...'
+      "></select>
+    </div>
+  </div>
+
+  <h4>{{ _('Filament labels') }}</h4>
+  <div data-bind="foreach: settings.plugins.prusammu.filament">
+    <div class="control-group">
+      <label class="control-label">{{ _('Filament') }} <span data-bind="text: $index() + 1"></span></label>
+      <div class="controls">
+        <input type="text" data-bind="value: $data.name" />
+        <i class="fas fa-pen-fancy icon-large" data-bind="style: { color: $data.color }"></i>
+        <input type="color" class="input-mini" data-bind="value: $data.color" />
+      </div>
+    </div>
+  </div>
+</form>

@@ -1,0 +1,4 @@
+include README.md
+recursive-include octoprint_prusammu/templates *
+recursive-include octoprint_prusammu/translations *
+recursive-include octoprint_prusammu/static *
