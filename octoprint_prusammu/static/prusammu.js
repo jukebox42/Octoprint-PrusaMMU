@@ -1,15 +1,15 @@
-(function (global, factory) {
+((global, factory) => {
   if (typeof define === "function" && define.amd) {
     define(["OctoPrintClient"], factory);
   } else {
     factory(global.OctoPrintClient);
   }
-})(this, function(OctoPrintClient) {
-  var OctoPrintPrusaMMU = function(base) {
+})(this, (OctoPrintClient) => {
+  var OctoPrintPrusaMMU = (base) => {
     this.base = base;
   };
 
-  OctoPrintPrusaMMU.prototype.select = function(index, opts) {
+  OctoPrintPrusaMMU.prototype.select = (index, opts) => {
     var data = {
       choice: index
     };
@@ -20,7 +20,7 @@
   return OctoPrintPrusaMMU;
 });
 
-$(function() {
+$(() => {
   function PrusaMMU2ViewModel(parameters) {
     var self = this;
 
@@ -39,7 +39,7 @@ $(function() {
       tool: false
     };
 
-    self._update_nav = function(tool, state) {
+    self._update_nav = (tool, state) => {
       console.log("plugin_prusammu: _update_nav", tool, state);
 
       self.mmu.tool = tool ? tool : false;
@@ -49,7 +49,7 @@ $(function() {
       self._set_nav();
     }
 
-    self._get_tool_color = function(tool) {
+    self._get_tool_color = (tool) => {
       if (tool === "") {
         return "inherited";
       }
@@ -60,22 +60,22 @@ $(function() {
       return color;
     }
 
-    self._get_tool_name = function (tool, state) {
-      if (state === "OK") {
-        return gettext("Ready");
+    self._get_tool_name = (tool, state) => {
+      switch (state) {
+        case "OK":
+          return gettext("Ready");
+        case "UNLOADING":
+          return gettext("Unloading...");
+        case "LOADING":
+          return gettext("Loading...");
+        case "ATTENTION":
+          return gettext("Needs Attention!");
+        case "PAUSED_USER":
+          return gettext("Awaiting User Input!");
+        default:
+          break;
       }
-      if (state === "UNLOADING") {
-        return gettext("Unloading...");
-      }
-      if (state === "LOADING") {
-        return gettext("Loading...");
-      }
-      if (state === "ATTENTION") {
-        return gettext("Needs Attention!");
-      }
-      if (state === "PAUSED_USER") {
-        return gettext("Awaiting User Input!");
-      }
+
       if (tool === "") {
         return "None";
       }
@@ -85,7 +85,7 @@ $(function() {
              self.settings.settings.plugins.prusammu.filament()[tool.replace("T", "")].name();
     }
 
-    self._set_nav = function() {
+    self._set_nav = () => {
       var showIconStates = ["LOADED", "UNLOADING", "LOADING", "PAUSED_USER", "ATTENTION"];
       $(iconId)
         .toggleClass("fa-pen-fancy", self.mmu.state === "LOADED")
@@ -107,7 +107,7 @@ $(function() {
 
     self._modal = undefined;
 
-    self._draw_selection = function(filament) {
+    self._draw_selection = (filament) => {
       var color = "inherited";
       if (filament.color()) {
         color = filament.color();
@@ -116,7 +116,7 @@ $(function() {
       gettext("Filament " + filament.id() + ": ") + filament.name();
     }
 
-    self._showPrompt = function() {
+    self._showPrompt = () => {
       var filament = self.settings.settings.plugins.prusammu.filament();
 
       // TODO: would be good to show disabled options. I wonder if I can
@@ -131,12 +131,12 @@ $(function() {
         title: gettext("Prusa MMU"),
         message: gettext("Select the filament spool:"),
         selections: selections,
-        onselect: function(index) {
+        onselect: (index) => {
           if (index > -1) {
             self._select(index);
           }
         },
-        onclose: function() {
+        onclose: () => {
           self._modal = undefined;
         }
       };
@@ -145,11 +145,11 @@ $(function() {
       setTimeout(self._closePrompt, self.settings.settings.plugins.prusammu.timeout() * 1000);
     };
 
-    self._select = function(index) {
+    self._select = (index) => {
       OctoPrint.plugins.prusammu.select(index);
     };
 
-    self._closePrompt = function() {
+    self._closePrompt = () => {
       if (self._modal) {
         self._modal.modal("hide");
       }
@@ -157,7 +157,7 @@ $(function() {
 
     // ===== Get Updates from backend =====
 
-    self.onDataUpdaterPluginMessage = function(plugin, data) {
+    self.onDataUpdaterPluginMessage = (plugin, data) => {
       if (!self.loginState.isUser() || plugin !== "prusammu") {
         return;
       }
