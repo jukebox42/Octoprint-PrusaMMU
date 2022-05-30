@@ -9,7 +9,7 @@
     this.base = base;
   };
 
-  OctoPrintPrusaMMU.prototype.select = (index, opts) => {
+  OctoPrintPrusaMMU.prototype.select = function(index, opts) {
     var data = {
       choice: index
     };
@@ -28,6 +28,7 @@ $(() => {
     var textId = "#navbar_plugin_prusammu_text";
 
     self.settings = parameters[0];
+    window.TEST_GLOBAL = self.settings;
     self.loginState = parameters[1];
 
     // ===== Nav =====
@@ -35,32 +36,36 @@ $(() => {
     self.mmu = {
       state: "UNKNOWN",
       text: "None",
-      color: "inherited",
-      tool: false
+      color: "inherited"
     };
 
-    self._update_nav = (tool, state) => {
+    self._update_nav = function(tool, state) {
       console.log("plugin_prusammu: _update_nav", tool, state);
 
-      self.mmu.tool = tool ? tool : false;
-      self.mmu.state = state;
-      self.mmu.text = self._get_tool_name(tool, state);
-      self.mmu.color = self._get_tool_color(tool);
+      var toolId = tool === "" ? "" : parseInt(tool.replace("T", ""));
+
+      self.mmu.text = self._get_tool_name(toolId, state);
+      self.mmu.color = self._get_tool_color(toolId);
       self._set_nav();
     }
 
-    self._get_tool_color = (tool) => {
+    self._get_tool_color = function(tool) {
       if (tool === "") {
         return "inherited";
       }
-      var color = self.settings.settings.plugins.prusammu.filament()[tool].color();
-      if (!color) {
+      try {
+        var color = self.settings.settings.plugins.prusammu.filament()[tool].color();
+        if (!color) {
+          return "inherited";
+        }
+        return color;
+      } catch (e) {
+        console.log("_get_tool_color", e);
         return "inherited";
       }
-      return color;
     }
 
-    self._get_tool_name = (tool, state) => {
+    self._get_tool_name = function(tool, state) {
       switch (state) {
         case "OK":
           return gettext("Ready");
@@ -82,10 +87,10 @@ $(() => {
       return gettext("Filament ") +
              (tool + 1) +
              ": " +
-             self.settings.settings.plugins.prusammu.filament()[tool.replace("T", "")].name();
+             self.settings.settings.plugins.prusammu.filament()[tool].name();
     }
 
-    self._set_nav = () => {
+    self._set_nav = function() {
       var showIconStates = ["LOADED", "UNLOADING", "LOADING", "PAUSED_USER", "ATTENTION"];
       $(iconId)
         .toggleClass("fa-pen-fancy", self.mmu.state === "LOADED")
@@ -107,7 +112,7 @@ $(() => {
 
     self._modal = undefined;
 
-    self._draw_selection = (filament) => {
+    self._draw_selection = function(filament) {
       var color = "inherited";
       if (filament.color()) {
         color = filament.color();
@@ -116,7 +121,7 @@ $(() => {
       gettext("Filament " + filament.id() + ": ") + filament.name();
     }
 
-    self._showPrompt = () => {
+    self._showPrompt = function() {
       var filament = self.settings.settings.plugins.prusammu.filament();
 
       // TODO: would be good to show disabled options. I wonder if I can
@@ -136,7 +141,7 @@ $(() => {
             self._select(index);
           }
         },
-        onclose: () => {
+        onclose: function() {
           self._modal = undefined;
         }
       };
@@ -145,11 +150,11 @@ $(() => {
       setTimeout(self._closePrompt, self.settings.settings.plugins.prusammu.timeout() * 1000);
     };
 
-    self._select = (index) => {
+    self._select = function(index) {
       OctoPrint.plugins.prusammu.select(index);
     };
 
-    self._closePrompt = () => {
+    self._closePrompt = function() {
       if (self._modal) {
         self._modal.modal("hide");
       }
@@ -157,7 +162,7 @@ $(() => {
 
     // ===== Get Updates from backend =====
 
-    self.onDataUpdaterPluginMessage = (plugin, data) => {
+    self.onDataUpdaterPluginMessage = function(plugin, data) {
       if (!self.loginState.isUser() || plugin !== "prusammu") {
         return;
       }

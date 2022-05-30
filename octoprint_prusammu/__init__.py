@@ -20,12 +20,14 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
 
   def __init__(self):
     # Plugin Status
+    # These are used as internal trackers
     self._active = False
     self._selectedFilament = None
     self._filamentChangeTriggered = False
     self._timer = None
 
     # MMU Status
+    # These are used for display purposes
     self.mmuState = "OK"
     self.mmuTool = ""
 
@@ -49,9 +51,9 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     try:
       self.mmuTool = self._settings.get(["mmuTool"])
       self._update_nav(self._settings.get(["mmuState"]))
-      self._logger.info("on_after_startup " + self.mmuState + " " + self.mmuTool)
+      self._logger.info("on_after_startup S: " + self.mmuState + " T: " + str(self.mmuTool))
     except:
-      self._logger.info("on_after_startup FAILED TO SET STATE AND TOOL")
+      self._logger.info("on_after_startup FAILED S: " + self.mmuState + " T: " + str(self.mmuTool))
       pass
 
   # ======== TemplatePlugin ========
@@ -89,7 +91,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       if not isinstance(choice, int) or not choice < 5 or not choice >= 0:
         return flask.abort(400, "{!r} is not a valid value for filament choice".format(choice+1))
 
-      self._logger.info("on_api_command" + "T" + str(choice))
+      self._logger.info("on_api_command T" + str(choice))
       self.mmuTool = choice
 
       self._done_prompt("T" + str(choice))
@@ -130,9 +132,9 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     self._logger.info("_update_nav S: " + self.mmuState + " T: " + str(self.mmuTool))
     try:
       self._settings.set("mmuState", self.mmuState)
-      self._settings.set("mmuState", self.mmuTool)
+      self._settings.set("mmuTool", self.mmuTool)
     except:
-      self._logger.info("_update_nav FAILED TO WRITE")
+      self._logger.info("_update_nav FAILED S: " + self.mmuState + " T: " + str(self.mmuTool))
       pass
 
     self._plugin_manager.send_plugin_message(
@@ -167,7 +169,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
         self.mmuTool = tool_cmd
         self._selectedFilament = None
         self._filamentChangeTriggered = False
-        # self._logger.info("gcode_queuing_hook_M109 " + tool_cmd)
+        self._logger.info("gcode_queuing_hook_M109 " + tool_cmd)
         return[(cmd,), (tool_cmd,)]
       else:
         return
@@ -190,7 +192,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     elif "MMU starts responding" in line:
       self._update_nav("OK")
     elif "Unloading finished" in line:
-      self.mmuTool = ""
+      # self.mmuTool = ""
       self._update_nav("UNLOADING")
     elif "MMU can_load" in line:
       self._update_nav("LOADING")
