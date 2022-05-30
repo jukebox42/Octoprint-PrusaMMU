@@ -53,14 +53,17 @@
     </div>
   </div>
 
+  
+  <h2>DEBUG: Current Status</h2>
   <div class="control-group">
-    <h2>Current Status</h2>
-    <div class="controls">
-      <label class="control-label">{{ _('mmuState') }}</label>
+    <label class="control-label">{{ _('mmuState') }}</label>
+      <div class="controls">
       <input type="text" data-bind="value: settings.plugins.prusammu.mmuState" disabled />
     </div>
+  </div>
+  <div class="control-group">
+    <label class="control-label">{{ _('mmuTool') }}</label>
     <div class="controls">
-      <label class="control-label">{{ _('mmuTool') }}</label>
       <input type="text" data-bind="value: settings.plugins.prusammu.mmuTool" disabled />
     </div>
   </div>

@@ -5,7 +5,7 @@
     factory(global.OctoPrintClient);
   }
 })(this, (OctoPrintClient) => {
-  var OctoPrintPrusaMMU = (base) => {
+  var OctoPrintPrusaMMU = function(base) {
     this.base = base;
   };
 
