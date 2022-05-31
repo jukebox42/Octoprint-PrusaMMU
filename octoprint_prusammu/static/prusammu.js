@@ -46,6 +46,7 @@ $(() => {
 
       self.mmu.text = self._get_tool_name(toolId, state);
       self.mmu.color = self._get_tool_color(toolId);
+      self.mmu.state = state;
       self._set_nav();
     }
 
