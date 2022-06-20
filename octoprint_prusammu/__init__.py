@@ -60,7 +60,6 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
 
   def get_template_configs(self):
     return [
-      # dict(type="navbar", custom_bindings=True),
       dict(type="settings", custom_bindings=False)
     ]
 
@@ -133,6 +132,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     try:
       self._settings.set("mmuState", self.mmuState)
       self._settings.set("mmuTool", self.mmuTool)
+      self._settings.save()
     except:
       self._logger.info("_update_nav FAILED S: " + self.mmuState + " T: " + str(self.mmuTool))
       pass
