@@ -1,3 +1,4 @@
+// TODO: Rewrite this file, it's using the old format
 ((global, factory) => {
   if (typeof define === "function" && define.amd) {
     define(["OctoPrintClient"], factory);
@@ -23,13 +24,15 @@
 $(() => {
   function PrusaMMU2ViewModel(parameters) {
     var self = this;
-    // window.TEST_GLOBAL = self;
+    window.TEST_GLOBAL = self;
 
     var iconId = "#navbar_plugin_prusammu_icon";
     var textId = "#navbar_plugin_prusammu_text";
 
     self.settings = parameters[0];
     self.loginState = parameters[1];
+
+    self.isDisplayActiveFilament = ko.observable(false);
 
     // ===== Nav =====
 
@@ -162,6 +165,11 @@ $(() => {
       }
     };
 
+    self.openSettings = function() {
+      self.settings.show();
+      self.settings.selectTab("#settings_plugin_prusammu");
+    }
+
     // ===== Get Updates from backend =====
 
     self.onDataUpdaterPluginMessage = function(plugin, data) {
@@ -182,9 +190,17 @@ $(() => {
       }
     }
 
+    // ===== Handle Settings Event =====
+
+    self.onSettingsBeforeSave = function () {
+      // Toggle the visibility of the nav based on the setting
+      self.isDisplayActiveFilament(self.settings.settings.plugins.prusammu.displayActiveFilament());
+    }
+
     // ===== Handle Startup Event =====
 
     self.onStartupComplete = function() {
+      self.isDisplayActiveFilament(self.settings.settings.plugins.prusammu.displayActiveFilament());
       // console.log("plugin_prusammu: onStartupComplete");
       // Try to load the current state. We get the printer state first to avoid tool getting
       // "stuck" issues and showing the wrong state (like filament loaded when printer is off).
@@ -196,8 +212,14 @@ $(() => {
           // If the printer is "ready", then it's not printing so show ready. Also clear out any
           // values, this is hoakey but works.
           if (flags.ready && !flags.printing && !flags.paused) {
-            self.settings.settings.plugins.prusammu.mmuState("");
-            self.settings.settings.plugins.prusammu.mmuTool("");
+            self.settings.saveData({
+              plugins: {
+                prusammu: {
+                  mmuState: "",
+                  mmuTool: "",
+                }
+              }
+            });
             return;
           }
           var tempMmuState = self.settings.settings.plugins.prusammu.mmuState();
