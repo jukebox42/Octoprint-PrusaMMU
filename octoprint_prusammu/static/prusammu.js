@@ -23,12 +23,12 @@
 $(() => {
   function PrusaMMU2ViewModel(parameters) {
     var self = this;
+    // window.TEST_GLOBAL = self;
 
     var iconId = "#navbar_plugin_prusammu_icon";
     var textId = "#navbar_plugin_prusammu_text";
 
     self.settings = parameters[0];
-    window.TEST_GLOBAL = self.settings;
     self.loginState = parameters[1];
 
     // ===== Nav =====
@@ -39,9 +39,10 @@ $(() => {
       color: "inherited"
     };
 
-    self._update_nav = function(tool, state) {
-      console.log("plugin_prusammu: _update_nav", tool, state);
+    // ===== Private Functions =====
 
+    self._update_nav = function(tool, state) {
+      // console.log("plugin_prusammu: _update_nav", tool, state);
       var toolId = tool === "" ? "" : parseInt(tool.replace("T", ""));
 
       self.mmu.text = self._get_tool_name(toolId, state);
@@ -61,7 +62,7 @@ $(() => {
         }
         return color;
       } catch (e) {
-        console.log("_get_tool_color", e);
+        console.error("plugin_prusammu: _get_tool_color Error", e);
         return "inherited";
       }
     }
@@ -179,6 +180,35 @@ $(() => {
           self._update_nav(data.tool, data.state);
           break;
       }
+    }
+
+    // ===== Handle Startup Event =====
+
+    self.onStartupComplete = function() {
+      // console.log("plugin_prusammu: onStartupComplete");
+      // Try to load the current state. We get the printer state first to avoid tool getting
+      // "stuck" issues and showing the wrong state (like filament loaded when printer is off).
+      // There's probably a cleaner way to do this but I'm too lazy to figure it out.
+      // This will fail if the printer isn't mounted.
+      OctoPrint.printer.getFullState({exclude: ["temperature", "sd"]}).then((ret) => {
+        try {
+          var flags = ret.state.flags;
+          // If the printer is "ready", then it's not printing so show ready. Also clear out any
+          // values, this is hoakey but works.
+          if (flags.ready && !flags.printing && !flags.paused) {
+            self.settings.settings.plugins.prusammu.mmuState("");
+            self.settings.settings.plugins.prusammu.mmuTool("");
+            return;
+          }
+          var tempMmuState = self.settings.settings.plugins.prusammu.mmuState();
+          var tempMmuTool = self.settings.settings.plugins.prusammu.mmuTool();
+          if (tempMmuState && tempMmuTool) {
+            self._update_nav(tempMmuTool, tempMmuState);
+          }
+        } catch (e) {
+          console.error("plugin_prusammu: onStartupComplete Error", e);
+        }
+      });
     }
   }
 

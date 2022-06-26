@@ -2,12 +2,10 @@
 from __future__ import absolute_import, unicode_literals
 import octoprint.plugin
 from threading import Timer
-import re
 
 from octoprint.server import user_permission
 
 import flask
-from flask_babel import gettext
 
 DEFAULT_TIMEOUT = 30
 TAG_PREFIX = "prusaMMUPlugin:"
@@ -43,18 +41,6 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
   def on_after_startup(self):
     self._logger.info("on_after_startup")
     self._set_class_vars()
-
-    # Handle initial load, see if we were already using the mmu2
-    # TODO: We need to NOT load these if the printer is not printing.
-    #       think handling crashes and what not. otherwise we will show
-    #       a false state.
-    try:
-      self.mmuTool = self._settings.get(["mmuTool"])
-      self._update_nav(self._settings.get(["mmuState"]))
-      self._logger.info("on_after_startup S: " + self.mmuState + " T: " + str(self.mmuTool))
-    except:
-      self._logger.info("on_after_startup FAILED S: " + self.mmuState + " T: " + str(self.mmuTool))
-      pass
 
   # ======== TemplatePlugin ========
 
@@ -133,9 +119,9 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       self._settings.set("mmuState", self.mmuState)
       self._settings.set("mmuTool", self.mmuTool)
       self._settings.save()
-    except:
-      self._logger.info("_update_nav FAILED S: " + self.mmuState + " T: " + str(self.mmuTool))
-      pass
+    except Exception as e:
+      self._logger.info(
+        "_update_nav FAILED S: " + self.mmuState + " T: " + str(self.mmuTool) + " E: " + str(e))
 
     self._plugin_manager.send_plugin_message(
       self._identifier,
@@ -192,7 +178,6 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     elif "MMU starts responding" in line:
       self._update_nav("OK")
     elif "Unloading finished" in line:
-      # self.mmuTool = ""
       self._update_nav("UNLOADING")
     elif "MMU can_load" in line:
       self._update_nav("LOADING")
