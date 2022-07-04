@@ -1,5 +1,5 @@
-<a href="javascript:void(0)" id="navbar_plugin_prusammu_a" data-bind="click: openSettings, visible: isDisplayActiveFilament">
+<a href="javascript:void(0)" id="navbar_plugin_prusammu_a" data-bind="click: openSettings, visible: shouldShowNav">
   MMU:
-  <i id="navbar_plugin_prusammu_icon" class="fas" style="display:none"></i>
-  <span id="navbar_plugin_prusammu_text">Ready</span>
+  <i class="fas" data-bind="style: { color: navColor }, class: navIcon, visible: navIcon !== ''"></i>
+  <span data-bind="text: navText"></span>
 </a>
