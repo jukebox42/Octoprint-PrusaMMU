@@ -141,7 +141,7 @@ $(() => {
      * ============================= */
 
     /**
-     * Generates an option from the backend.
+     * Generates an option from the backend used in the modal. Disabled items will not show.
      * 
      * @param {object} filament - The filament object from settings. This expects the object to not
      *                            be the function but the return of it.
@@ -155,9 +155,9 @@ $(() => {
       const name = filament.name();
       const icon = "<i class=\"fas fa-pen-fancy\" style=\"color: " + color + "\"></i> "
       if (name === "") {
-        return  gettext(`${icon} Filament ${filament.id()}`);
+        return icon + gettext(`Filament ${filament.id()}`);
       }
-      return gettext(`${color} Filament ${filament.id()}: ${filament.name()}`);
+      return icon + gettext(` Filament ${filament.id()}: ${filament.name()}`);
     };
 
     /**
@@ -285,6 +285,11 @@ $(() => {
       log("onEventDisconnected");
       updateNav("", "");
     };
+
+    self.onEventPrintDone = function() {
+      log("onEventPrintDone");
+      checkPrinterState();
+    }
 
     /* =============================
      * =====  Misc. Functions  =====
