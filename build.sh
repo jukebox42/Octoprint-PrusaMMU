@@ -4,8 +4,9 @@ echo "=== Building PrusaMMU ===";
 echo "";
 
 # Take inputs
+dt=`date +"%y.%-m.%-d"alpha`;
 echo "Settings:";
-version="${1:-BETA}";
+version="${1:-$dt}";
 debug="${2:-y}";
 echo "- Version: $version";
 echo "- Debug $debug";

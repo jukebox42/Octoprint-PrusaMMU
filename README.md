@@ -1,6 +1,9 @@
 # Octoprint-PrusaMMU
 
-**Description:** This plugin only works with a Prusa printer paired with an MMU2S. This plugin prompts you to select the filament when starting a print that was sliced with "MMU2S Single" instead of forcing you to be at your printer. It additionally lets you name and color the filament in each extruder. The active filament will be displayed in the navbar.
+**Description:** This plugin only works with a Prusa printer paired with an MMU2S. This plugin
+prompts you to select the filament when starting a print that was sliced with "MMU2S Single" instead
+of forcing you to be at your printer. It additionally lets you name and color the filament in each
+extruder. The active filament will be displayed in the navbar.
 
 Install via the bundled [Plugin Manager](https://docs.octoprint.org/en/master/bundledplugins/pluginmanager.html)
 or manually by selecting the latest zip:
@@ -41,7 +44,7 @@ Zipping... done
 Done.
 ```
 
-- Version expects a string (optional, defaults to BETA)
+- Version expects a string (optional, defaults to YYYY.M.Dalpha)
 - Debug turns on and off debug logs in the plugin expects a y/n (optional, defaults to y)
 
 ### Versioning
@@ -59,7 +62,7 @@ YYYY.M.Db#
 ```
 
 Examples:
-````
+```
 2022.10.4
 2022.1.20
 2022.1.20b2
@@ -71,5 +74,11 @@ the plugin settings.
 
 ## Known Bugs
 
-1. In rare events the "waiting for user input" event can come in directly after a tool change is sent resulting in the navbar never updating.nThis will not impact printing but you will see "Awaiting user input" until the next tool change.
-1. If the prusa printer prompts the user for a "new version", the select filament modal may not display. You will still be able to select the filament directly on the printer.
+1. In rare instances the "waiting for user input" event can come in directly after a tool change is sent, resulting in the navbar never updating. This will not impact printing but you will see "Awaiting user input" until the next tool change.
+1. If the Prusa printer prompts the user for a "new version", the select filament modal may not display. You will still be able to select the filament directly on the printer.
+
+## Useful Link
+- [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
+- [Debugging MMU2](https://revilor.github.io/MMU2-Marlin/debugging.html)
+- [MMU2 LEDs Meaning](https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light)
+- [Octoprint Plugin Docs](https://docs.octoprint.org/en/master/plugins/mixins.html)

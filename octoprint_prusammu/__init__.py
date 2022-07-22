@@ -1,9 +1,9 @@
 # coding=utf-8
 from __future__ import absolute_import, unicode_literals
-import octoprint.plugin
 from threading import Timer
 import re
 
+import octoprint.plugin
 from octoprint.server import user_permission
 
 import flask
@@ -144,6 +144,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     )
 
   # ======== Gcode Hooks ========
+  # Hint: these are linked at the bottom of the file __plugin_hooks__
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
@@ -172,17 +173,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
         self._show_prompt()
       return None,
 
-    # Catch when the gcode sends a tool number, this happens when it's set to print in multi
-    if cmd.startswith("T"):
-      try:
-        x = re.search(r"'T(\d)'", cmd)
-        tool = x.group(1)
-        self.mmu["tool"] = tool
-        self.log("gcode_queuing_hook T{} {}".format(tool, cmd), True)
-      except:
-        pass
-
-    return None,
+    return
 
   # Listen for MMU2 events and update the nav to reflect it
   def gcode_received_hook(self, comm, line, *args, **kwargs):
@@ -205,6 +196,28 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       self.update_navbar("LOADED")
 
     return line
+
+
+  def gcode_sent_hook(self, comm, phase, cmd, cmd_type, gcode,
+                         subcode=None, tags=None, *args, **kwarg):
+    # only react to tool change commands
+    if (
+      not cmd.startswith("T0") and not cmd.startswith("T1") and not cmd.startswith("T2")
+      and not cmd.startswith("T3") and not cmd.startswith("T4") 
+    ):
+      return
+
+    # Catch when the gcode sends a tool number, this happens when it's set to print in multi
+    if cmd.startswith("T"):
+      try:
+        x = re.search(r"T(\d)", cmd)
+        tool = x.group(1)
+        self.mmu["tool"] = tool
+        self.log("gcode_sent_hook T{} {}".format(tool, cmd), True)
+      except:
+        pass
+
+    return
 
   # ======== SettingsPlugin ========
 
@@ -282,4 +295,5 @@ __plugin_implementation__ = PrusaMMUPlugin()
 __plugin_hooks__ = {
   "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.gcode_queuing_hook,
   "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received_hook,
+  "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent_hook,
 }
