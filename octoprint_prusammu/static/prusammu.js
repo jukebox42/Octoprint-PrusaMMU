@@ -14,10 +14,11 @@ $(() => {
     self.settings = {};
     self.modal = undefined;
   
+    self.isSimpleDisplayMode = ko.observable(false);
     self.shouldShowNav = ko.observable(false);
     self.navText = ko.observable("Not Found");
     self.navColor = ko.observable("inherited");
-    self.navIcon = ko.observable("");
+    self.navIcon = ko.observable("fa-times");
 
     /* =============================
      * =====   Nav Functions   =====
@@ -60,7 +61,7 @@ $(() => {
       if (name === "") {
         return  gettext(`Filament ${(tool + 1)}`);
       }
-      return gettext(`Filament  ${(tool + 1)}: ${name}`);
+      return `${(tool + 1)}: ${name}`;
     };
 
     /**
@@ -68,8 +69,8 @@ $(() => {
      * 
      * @param {int|string} tool - The ID of the tool or ""
      */
-    const getToolColor = (tool) => {
-      if (tool === "") {
+    const getToolColor = (tool, state) => {
+      if (tool === "" || state === "OK") {
         return "inherited";
       }
       try {
@@ -97,6 +98,7 @@ $(() => {
       self.navColor(getToolColor(toolId));
       
       const iconStates = {
+        "OK": "fa-check",
         "LOADED": "fa-pen-fancy",
         "UNLOADING": "fa-long-arrow-alt-up",
         "LOADING": "fa-long-arrow-alt-down",
@@ -106,7 +108,7 @@ $(() => {
       if (Object.keys(iconStates).indexOf(state) !== -1) {
         self.navIcon(iconStates[state]);
       } else {
-        self.navIcon("");
+        self.navIcon("fa-question");
       }
 
       log(
@@ -157,7 +159,7 @@ $(() => {
       if (name === "") {
         return icon + gettext(`Filament ${filament.id()}`);
       }
-      return icon + gettext(` Filament ${filament.id()}: ${filament.name()}`);
+      return `${icon} ${filament.id()}: ${filament.name()}`;
     };
 
     /**
@@ -196,6 +198,7 @@ $(() => {
         title: gettext("Prusa MMU"),
         message: gettext("Select the filament spool:"),
         selections: selections,
+        maycancel: true,
         onselect: (index) => {
           if (index > -1) {
             selectCallback(index);
@@ -247,6 +250,7 @@ $(() => {
      */
     self.onSettingsBeforeSave = function () {
       self.shouldShowNav(self.settings.displayActiveFilament());
+      self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
 
       // If a user changes a filament in settings mid print we should listen for that and redraw.
       updateNav(self.settings.mmuTool(), self.settings.mmuState());
@@ -265,6 +269,7 @@ $(() => {
      */
     self.onStartupComplete = function() {
       self.shouldShowNav(self.settings.displayActiveFilament());
+      self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
       checkPrinterState();
     };
 
