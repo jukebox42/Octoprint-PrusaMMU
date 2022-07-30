@@ -144,36 +144,38 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     )
 
   # ======== Gcode Hooks ========
+  # https://docs.octoprint.org/en/master/plugins/hooks.html#octoprint-comm-protocol-gcode-phase
   # Hint: these are linked at the bottom of the file __plugin_hooks__
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
     # only react to tool change commands
     if not cmd.startswith("Tx") and not cmd.startswith("M109"):
-      return
+      return # passthrough
 
     if TIMEOUT_TAG in tags:
-      return
+      return # passthrough
 
     if cmd.startswith("M109"):
       # self._logger.info("gcode_queuing_hook {} {}".format(cmd, self.states["selectedFilament"]))
+      self.log("gcode_queuing_hook_M109 command: {}".format(cmd,), True)
       if self.states["selectedFilament"] is not None:
         tool_cmd = self.states["selectedFilament"]
         self.mmu["tool"] = tool_cmd
         self.states["selectedFilament"] = None
-        self.log("gcode_queuing_hook_M109 {}".format(tool_cmd), True)
-        return[(cmd,), (tool_cmd,)]
+        self.log("gcode_queuing_hook_M109 tool: {}".format(tool_cmd), True)
+        return[(cmd,), (tool_cmd,)] # rewrite (append tool command)
       else:
-        return
+        return # passthrough
 
     # Prompt for filament change
     if cmd.startswith("Tx"):
       self.log("gcode_queuing_hook {}".format(cmd), True)
       if self._printer.set_job_on_hold(True):
         self._show_prompt()
-      return None,
+      return None, # suppress
 
-    return
+    return # passthrough
 
   # Listen for MMU2 events and update the nav to reflect it
   def gcode_received_hook(self, comm, line, *args, **kwargs):
@@ -188,18 +190,15 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       self.update_navbar("OK")
     elif "MMU starts responding" in line:
       self.update_navbar("OK")
-    elif "Unloading finished" in line:
-      self.update_navbar("UNLOADING")
-    elif "MMU can_load" in line:
+    elif "MMU can_load" in line: # TODO: or "Unloading finished" (this got us stuck in loading)
       self.update_navbar("LOADING")
     elif "OO succeeded" in line:
       self.update_navbar("LOADED")
 
     return line
 
-
   def gcode_sent_hook(self, comm, phase, cmd, cmd_type, gcode,
-                         subcode=None, tags=None, *args, **kwarg):
+                      subcode=None, tags=None, *args, **kwarg):
     # only react to tool change commands
     if (
       not cmd.startswith("T0") and not cmd.startswith("T1") and not cmd.startswith("T2")
@@ -208,14 +207,18 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       return
 
     # Catch when the gcode sends a tool number, this happens when it's set to print in multi
-    if cmd.startswith("T"):
-      try:
-        x = re.search(r"T(\d)", cmd)
-        tool = x.group(1)
-        self.mmu["tool"] = tool
-        self.log("gcode_sent_hook T{} {}".format(tool, cmd), True)
-      except:
-        pass
+    try:
+      x = re.search(r"T(\d)", cmd)
+      tool = x.group(1)
+
+      # Show unloading if there's already a tool loaded and it's not the same tool
+      if self.mmu["state"] == "LOADED" and self.mmu["tool"] != tool:
+        self.update_navbar("UNLOADING")
+
+      self.mmu["tool"] = tool
+      self.log("gcode_sent_hook T{} {}".format(tool, cmd), True)
+    except:
+      pass
 
     return
 
@@ -226,6 +229,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       timeout=DEFAULT_TIMEOUT,
       useDefaultFilament=False,
       displayActiveFilament=True,
+      simpleDisplayMode=False,
       defaultFilament=-1,
       filament=[
         dict(name="", color="", enabled=True, id=1), # 1
@@ -266,6 +270,14 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       data["defaultFilament"] = -1
       data["useDefaultFilament"] = False
 
+    # TODO: When settings are saved during a print the MMU forgets it's state. Trying to save
+    #       however results in things getting weird and the MMU getting constantly stuck in loading
+    #       with no way to zero out. I'm sure it's any easy problem to solve but for another day.
+    # preserve MMU if it's not present here.
+    # if not data["mmuTool"] and data["mmuState"]:
+    #   data["mmuTool"] = self.mmu["tool"]
+    #   data["mmuState"] = self.mmu["state"]
+
     # save settings
     octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
     self.refresh_config()
@@ -275,6 +287,10 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     self.config["useDefaultFilament"] = self._settings.get_boolean(["useDefaultFilament"])
     self.config["displayActiveFilament"] = self._settings.get_boolean(["displayActiveFilament"])
     self.config["defaultFilament"] = self._settings.get_int(["defaultFilament"])
+    self.config["simpleDisplayMode"] = self._settings.get_boolean(["simpleDisplayMode"])
+
+    self.mmu["state"] = self._settings.get(["mmuState"])
+    self.mmu["tool"] = self._settings.get(["mmuTool"])
 
   def log(self, msg, debug=False):
     if not debug:
@@ -290,7 +306,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
 
 
 __plugin_name__ = "Prusa MMU"
-__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_pythoncompat__ = ">=3,<4"
 __plugin_implementation__ = PrusaMMUPlugin()
 __plugin_hooks__ = {
   "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.gcode_queuing_hook,

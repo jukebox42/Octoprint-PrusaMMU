@@ -18,7 +18,7 @@ plugin_version = "VERSION"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
-plugin_description = """ This plugin only works with a Prusa printer paired with an MMU2S. This plugin prompts you to select the filament when starting a print that was sliced with "MMU2S Single" instead of forcing you to be at your printer. It additionally lets you name and color the filament in each extruder. The active filament will be displayed in the navbar."""
+plugin_description = """This plugin adds Prusa MMU2 support to OctoPrint. The active filament will be displayed in the navbar and you will be prompted to select which filament to use when slicing in "MMU2S Single" mode. Other settings are available to name each tool and set defaults. This plugin only works for a Prusa printer with an MMU2."""
 
 # The plugin's author. Can be overwritten within OctoPrint's internal data via __plugin_author__ in the plugin module
 plugin_author = "jukebox42"
