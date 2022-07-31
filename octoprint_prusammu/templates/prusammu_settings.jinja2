@@ -1,37 +1,44 @@
-<h3>{{_('Prusa MMU Settings')}}
-
+<h2>{{ _("Prusa MMU") }}</h2>
 <form class="form-horizontal">
-  <div class="control-group">
-    <label class="control-label">{{ _('Display In Navbar') }}</label>
-    <div class="controls">
-      <input type="checkbox" data-bind="checked: settings.plugins.prusammu.displayActiveFilament" />
-      <span class="help-block">{{ _("Note: Displaying the active filament in the navbar can be unreliable at times. The tool information cannot be retrieved during a print, it's only reported during a change. Instead, we try to remember decisions made and save it so it's available on subsequent loads.") }}</span>
+  <h3>{{ _("Filament Labels") }}</h3>
+
+  <div data-bind="foreach: settings.plugins.prusammu.filament">
+    <div class="control-group">
+      <label class="control-label"><strong data-bind="text: $index() + 1"></strong></label>
+      <div class="controls">
+        <input type="checkbox" data-bind="checked: $data.enabled" />
+        <input type="text" data-bind="value: $data.name" />
+        <i class="fas fa-pen-fancy icon-large" data-bind="style: { color: $data.color }"></i>
+        <input type="color" class="input-mini" data-bind="value: $data.color" />
+      </div>
     </div>
   </div>
 
-  <h4>{{ _('Timeout') }}</h4>
+  <h3>{{ _("Timeout") }}</h3>
 
   <div class="control-group">
-    <label class="control-label">{{ _('Timeout') }}</label>
+    <label class="control-label">{{ _("Timeout") }}</label>
     <div class="controls">
       <div class="input-append">
         <input type="number" class="input-mini text-right" class="input-block-level" data-bind="value: settings.plugins.prusammu.timeout">
-        <span class="add-on">{{ _('seconds') }}</span>
+        <span class="add-on">{{ _("seconds") }}</span>
 			</div>
-      <span class="help-block">{{ _('After this given time, the dialog closes and the print will go on as usual. This means you have to select the filament at your printer.') }}</span>
+      <span class="help-block">{{ _("After this given time, the dialog closes and the print will go on as usual. This means you have to select the filament at your printer.") }}</span>
     </div>
   </div>
 
   <div class="control-group">
-    <label class="control-label">{{ _('Use Default Filament') }}</label>
     <div class="controls">
-      <input type="checkbox" data-bind="checked: settings.plugins.prusammu.useDefaultFilament" />
-      <span class="help-block">{{ _('Enabling this will default the filament to use once the dialog times out.') }}</span>
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.useDefaultFilament" />
+        {{ _("Use Default Filament") }}
+      </label>
+      <span class="help-block">{{ _("Check if you want octoprint to default to a specific filament when the dialog times out.") }}</span>
     </div>
   </div>
 
   <div class="control-group" data-bind="visible: settings.plugins.prusammu.useDefaultFilament">
-    <label class="control-label">{{ _('Default Filament') }}</label>
+    <label class="control-label">{{ _("Default Filament") }}</label>
     <div class="controls">
       <select data-bind="
         options: settings.plugins.prusammu.filament,
@@ -45,40 +52,33 @@
     </div>
   </div>
 
-  <h4>{{ _('Filament labels') }}</h4>
+  <h3>{{ _("Navbar Settings") }}</h3>
 
-  <div data-bind="foreach: settings.plugins.prusammu.filament">
-    <div class="control-group">
-      <label class="control-label">{{ _('Filament') }} <span data-bind="text: $index() + 1"></span></label>
-      <div class="controls">
-        <input type="checkbox" data-bind="checked: $data.enabled" />
-        <input type="text" data-bind="value: $data.name" />
-        <i class="fas fa-pen-fancy icon-large" data-bind="style: { color: $data.color }"></i>
-        <input type="color" class="input-mini" data-bind="value: $data.color" />
-      </div>
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.displayActiveFilament" />
+        {{ _("Display In Navbar") }}
+      </label>
+      <span class="help-block">{{ _("Note: Displaying the active filament in the navbar can be unreliable at times. The tool information cannot be retrieved during a print, it's only reported during a change. Instead, we try to remember decisions made and save it so it's available on subsequent loads.") }}</span>
     </div>
   </div>
 
-  <div>
-    <small>
-    <a href="#" class="muted" data-bind="toggleContent: { class: 'fa-caret-right fa-caret-down', parent: '.form-horizontal', container: '.hide' }"><i class="fas fa-caret-right"></i> Debugging</a>
-    </small>
-    <div class="hide">
-      <div class="alert">
-       <p>{{ _('You can ignore the values below. They represent the current recorded tool information. We try to use settings to store the active tool so it can be shown on reload.') }}</p>
-      </div>
-      <div class="control-group">
-        <label class="control-label">{{ _('mmuState') }}</label>
-          <div class="controls">
-          <input type="text" data-bind="value: settings.plugins.prusammu.mmuState" disabled />
-        </div>
-      </div>
-      <div class="control-group">
-        <label class="control-label">{{ _('mmuTool') }}</label>
-        <div class="controls">
-          <input type="text" data-bind="value: settings.plugins.prusammu.mmuTool" disabled />
-        </div>
-      </div>
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.simpleDisplayMode" />
+        {{ _("Simple Display Mode") }}
+      </label>
+      <span class="help-block">{{ _("Check to remove the text from the navbar item to save space.") }}</span>
     </div>
   </div>
+
+  <h3>MMU2 Help</h3>
+
+  <ul>
+    <li><a href="https://help.prusa3d.com/guide/service-menu-individual-filament-calibration_86376" target="_blank">{{ _("MMU2 Filament Calibration")}}</a></li>
+    <li><a href="https://help.prusa3d.com/guide/filament-jam-mmu2s_85936" target="_blank">{{ _("MMU2 Filament Jam")}}</a></li>
+    <li><a href="https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light" target="_blank">{{ _("MMU2 Red Light Troubleshooting") }}</a></li>
+  </ul>
 </form>

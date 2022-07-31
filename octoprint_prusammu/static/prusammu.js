@@ -14,10 +14,11 @@ $(() => {
     self.settings = {};
     self.modal = undefined;
   
+    self.isSimpleDisplayMode = ko.observable(false);
     self.shouldShowNav = ko.observable(false);
     self.navText = ko.observable("Not Found");
     self.navColor = ko.observable("inherited");
-    self.navIcon = ko.observable("");
+    self.navIcon = ko.observable("fa-times");
 
     /* =============================
      * =====   Nav Functions   =====
@@ -60,16 +61,17 @@ $(() => {
       if (name === "") {
         return  gettext(`Filament ${(tool + 1)}`);
       }
-      return gettext(`Filament  ${(tool + 1)}: ${name}`);
+      return `${(tool + 1)}: ${name}`;
     };
 
     /**
      * Gets the color of the tool from settings or leaves it inherited(grey).
      * 
      * @param {int|string} tool - The ID of the tool or ""
+     * @param {string} state - The state of the MMU
      */
-    const getToolColor = (tool) => {
-      if (tool === "") {
+    const getToolColor = (tool, state) => {
+      if (tool === "" || state === "OK") {
         return "inherited";
       }
       try {
@@ -94,9 +96,10 @@ $(() => {
       const toolId = tool === "" ? "" : parseInt(tool.replace("T", ""));
 
       self.navText(getToolText(toolId, state));
-      self.navColor(getToolColor(toolId));
+      self.navColor(getToolColor(toolId, state));
       
       const iconStates = {
+        "OK": "fa-check",
         "LOADED": "fa-pen-fancy",
         "UNLOADING": "fa-long-arrow-alt-up",
         "LOADING": "fa-long-arrow-alt-down",
@@ -106,7 +109,7 @@ $(() => {
       if (Object.keys(iconStates).indexOf(state) !== -1) {
         self.navIcon(iconStates[state]);
       } else {
-        self.navIcon("");
+        self.navIcon("fa-question");
       }
 
       log(
@@ -153,11 +156,11 @@ $(() => {
       }
       self.navColor(color);
       const name = filament.name();
-      const icon = "<i class=\"fas fa-pen-fancy\" style=\"color: " + color + "\"></i> "
+      const icon = `<i class="fas fa-pen-fancy" style="color: ${color}"></i> `;
       if (name === "") {
         return icon + gettext(`Filament ${filament.id()}`);
       }
-      return icon + gettext(` Filament ${filament.id()}: ${filament.name()}`);
+      return `${icon} ${filament.id()}: ${filament.name()}`;
     };
 
     /**
@@ -196,6 +199,7 @@ $(() => {
         title: gettext("Prusa MMU"),
         message: gettext("Select the filament spool:"),
         selections: selections,
+        maycancel: true,
         onselect: (index) => {
           if (index > -1) {
             selectCallback(index);
@@ -247,6 +251,7 @@ $(() => {
      */
     self.onSettingsBeforeSave = function () {
       self.shouldShowNav(self.settings.displayActiveFilament());
+      self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
 
       // If a user changes a filament in settings mid print we should listen for that and redraw.
       updateNav(self.settings.mmuTool(), self.settings.mmuState());
@@ -265,6 +270,7 @@ $(() => {
      */
     self.onStartupComplete = function() {
       self.shouldShowNav(self.settings.displayActiveFilament());
+      self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
       checkPrinterState();
     };
 
@@ -297,7 +303,7 @@ $(() => {
 
     /**
      * We get the printer state to avoid tool getting "stuck" issues and showing the wrong state
-     * (like filament loaded when printer is off). There's probably a  cleaner way to do this but
+     * (like filament loaded when printer is off). There's probably a cleaner way to do this but
      * I'm too lazy to figure it out.
      */
     const checkPrinterState = () => {
@@ -309,15 +315,16 @@ $(() => {
           // If the printer is "ready", then it's not printing so show ready. Also clear out any
           // values, this is hoakey but works.
           if (flags.ready && !flags.printing && !flags.paused) {
+            const mmuState = ret.state.text === "Operational" ? "OK" : ""
             self.global_settings.saveData({
               plugins: {
                 prusammu: {
-                  mmuState: "",
+                  mmuState: mmuState,
                   mmuTool: "",
                 }
               }
             });
-            updateNav("", "OK"); // send it the "ready" signal.
+            updateNav("", mmuState); // send it the "ready" signal.
             return;
           }
           const tempMmuState = self.settings.mmuState();

@@ -1,5 +1,7 @@
 #!usr/bin/env bash
 
+# bash build.sh YYYY.M.D n
+
 echo "=== Building PrusaMMU ===";
 echo "";
 
