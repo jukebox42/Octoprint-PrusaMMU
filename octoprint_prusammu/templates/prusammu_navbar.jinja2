@@ -1,5 +1,5 @@
 <a href="javascript:void(0)" id="navbar_plugin_prusammu_a" data-bind="click: openSettings, visible: shouldShowNav">
   MMU:
-  <i class="fas" data-bind="style: { color: navColor }, class: navIcon, visible: navIcon !== ''"></i>
-  <span data-bind="text: navText"></span>
+  <i class="fas" data-bind="style: { color: navColor }, class: navIcon, visible: navIcon !== '', attr: { title: navText }"></i>
+  <span data-bind="text: navText, hidden: isSimpleDisplayMode"></span>
 </a>
