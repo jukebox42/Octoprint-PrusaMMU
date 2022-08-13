@@ -5,6 +5,7 @@ import re
 
 import octoprint.plugin
 from octoprint.server import user_permission
+from octoprint.events import Events
 
 import flask
 
@@ -13,11 +14,18 @@ NOISY_DEBUG = True
 
 # === Constants ===
 DEFAULT_TIMEOUT = 30
+PLUGIN_NAME = "prusammu"
 TAG_PREFIX = "prusaMMUPlugin:"
 TIMEOUT_TAG = "{}timeout".format(TAG_PREFIX)
+FILAMENT_SOURCE_DEFAULT = [
+  dict(name="Prusa MMU", id=PLUGIN_NAME),
+  # dict(name="GCode", id="gcode"),
+]
 
-class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
+class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
+                     octoprint.plugin.TemplatePlugin,
                      octoprint.plugin.AssetPlugin,
+                     octoprint.plugin.EventHandlerPlugin,
                      octoprint.plugin.SimpleApiPlugin,
                      octoprint.plugin.SettingsPlugin):
 
@@ -33,6 +41,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     self.mmu = dict(
       state="OK",
       tool="",
+      previousTool="",
     )
 
     # Local Settings Config
@@ -40,13 +49,30 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       timeout=DEFAULT_TIMEOUT,
       useDefaultFilament=False,
       displayActiveFilament=False,
-      defaultFilament=1,
+      defaultFilament=-1,
+      filamentSource=PLUGIN_NAME,
+      filamentSources=[],
     )
 
   # ======== Startup ========
 
   def on_after_startup(self):
     self.log("on_after_startup")
+    
+    try:
+      # After startup set the sources we have available
+      sources = FILAMENT_SOURCE_DEFAULT
+      if "filamentmanager" in self._plugin_manager.plugins:
+        self.log("Found Filament Manager")
+        sources.append(dict(name="Filament Manager", id="filamentManager"))
+      if "SpoolManager" in self._plugin_manager.plugins:
+        self.log("Found Spool Manager")
+        sources.append(dict(name="Spool Manager", id="spoolManager"))
+      self._settings.set(["filamentSources"], sources)
+      self._settings.save()
+    except Exception as e:
+      self.log("Failed to load sources {}".format(str(e)))
+
     self.refresh_config()
 
   # ======== TemplatePlugin ========
@@ -127,6 +153,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     self.log("update_navbar S: {} T: {}".format(self.mmu["state"], self.mmu["tool"]), True)
     try:
       self._settings.set(["mmuState"], self.mmu["state"])
+      self._settings.set(["mmuPreviousTool"], self.mmu["previousTool"])
       self._settings.set(["mmuTool"], self.mmu["tool"])
       self._settings.save()
     except Exception as e:
@@ -139,6 +166,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       dict(
         action="nav",
         tool=self.mmu["tool"],
+        previousTool=self.mmu["previousTool"],
         state=self.mmu["state"]
       )
     )
@@ -149,7 +177,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
-    # only react to tool change commands
+    # only react to tool change commands and ignore everything if they dont want the dialog
     if not cmd.startswith("Tx") and not cmd.startswith("M109"):
       return # passthrough
 
@@ -211,14 +239,36 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
 
       # Show unloading if there's already a tool loaded and it's not the same tool
       if self.mmu["state"] == "LOADED" and self.mmu["tool"] != tool:
+        self.mmu["previousTool"] = self.mmu["tool"]
+        self.mmu["tool"] = tool
         self.update_navbar("UNLOADING")
+        return
 
       self.mmu["tool"] = tool
-      self.log("gcode_sent_hook T{} {}".format(tool, cmd), True)
+      self.log("gcode_sent_hook Tool: {} CMD: {}".format(tool, cmd), True)
     except:
       pass
 
     return
+
+  # ======== EventHandlerPlugin ========
+
+  def on_event(self, event, payload):
+    # We only care about terminal states
+    if (
+      event != Events.PRINT_DONE and event != Events.PRINT_FAILED and
+      event != Events.PRINT_CANCELLED
+    ):
+      return
+
+    self.log("on_event {}".format(event), True)
+
+    # When the print finishes clear the cache
+    self.mmu["tool"] = ""
+    self.mmu["previousTool"] = ""
+    self.mmu["state"] = "OK"
+    
+    self.update_navbar("", True)
 
   # ======== SettingsPlugin ========
 
@@ -229,20 +279,32 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
       displayActiveFilament=True,
       simpleDisplayMode=False,
       defaultFilament=-1,
+      filamentSource=PLUGIN_NAME,
+      filamentSources=FILAMENT_SOURCE_DEFAULT,
       filament=[
-        dict(name="", color="", enabled=True, id=1), # 1
-        dict(name="", color="", enabled=True, id=2), # 2
-        dict(name="", color="", enabled=True, id=3), # 3
-        dict(name="", color="", enabled=True, id=4), # 4
-        dict(name="", color="", enabled=True, id=5)  # 5
+        dict(name="", color="", enabled=True, id=1),
+        dict(name="", color="", enabled=True, id=2),
+        dict(name="", color="", enabled=True, id=3),
+        dict(name="", color="", enabled=True, id=4),
+        dict(name="", color="", enabled=True, id=5),
       ],
-      mmuState = "OK",
-      mmuTool = "",
+      gcodeFilament=[
+        dict(name="", color="", id=1),
+        dict(name="", color="", id=2),
+        dict(name="", color="", id=3),
+        dict(name="", color="", id=4),
+        dict(name="", color="", id=5),
+      ],
+      mmuState="OK",
+      mmuTool="",
+      mmuPreviousTool="",
     )
 
   def on_settings_save(self, data):
     # ensure timeout is correct
     try:
+      if "timeout" not in data:
+        data["timeout"] = self._settings.get_int(["timeout"])
       data["timeout"] = int(data["timeout"])
 
       if data["timeout"] < 0:
@@ -250,56 +312,52 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
     except:
       data["timeout"] = DEFAULT_TIMEOUT
 
-    # handle default fillament setting. clear if unused
-    try:
-      data["useDefaultFilament"] = bool(data["useDefaultFilament"])
-      if not data["useDefaultFilament"]:
-        data["defaultFilament"] = -1
-    except:
-      data["defaultFilament"] = -1
-      data["useDefaultFilament"] = False
+    # Always remember gcode filament, we dont care if it's stale it'll be refreshed on load
+    # TODO: load this data on print load or something. i dunno good luck.
+    if "gcodeFilament" not in data:
+      data["gcodeFilament"] = self._settings.get(["gcodeFilament"])
 
-    try:
-      data["defaultFilament"] = int(data["defaultFilament"])
-
-      if data["defaultFilament"] < 0:
-        data["useDefaultFilament"] = False
-    except:
-      data["defaultFilament"] = -1
-      data["useDefaultFilament"] = False
-
-    # TODO: When settings are saved during a print the MMU forgets it's state. Trying to save
-    #       however results in things getting weird and the MMU getting constantly stuck in loading
-    #       with no way to zero out. I'm sure it's any easy problem to solve but for another day.
+    # TODO This causes a weird restore because of the last state change. I think we really need to
+    # zero the fields out. Or try the commented out code below
     # preserve MMU if it's not present here.
-    # if not data["mmuTool"] and data["mmuState"]:
-    #   data["mmuTool"] = self.mmu["tool"]
-    #   data["mmuState"] = self.mmu["state"]
+    # stateId = self._printer.get_state_id()
+    # if "mmuTool" not in data and "mmuState" not in data and stateId in ["PRINTING", "PAUSED"]:
+    if "mmuTool" not in data and "mmuState" not in data:
+      data["mmuTool"] = self.mmu["tool"]
+      data["mmuPreviousTool"] = self.mmu["previousTool"]
+      data["mmuState"] = self.mmu["state"]
+
+    self.log("on_settings_save", True)
 
     # save settings
     octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
     self.refresh_config()
 
   def refresh_config(self):
+    self.config["simpleDisplayMode"] = self._settings.get_boolean(["simpleDisplayMode"])
+
     self.config["timeout"] = self._settings.get_int(["timeout"])
     self.config["useDefaultFilament"] = self._settings.get_boolean(["useDefaultFilament"])
-    self.config["displayActiveFilament"] = self._settings.get_boolean(["displayActiveFilament"])
     self.config["defaultFilament"] = self._settings.get_int(["defaultFilament"])
-    self.config["simpleDisplayMode"] = self._settings.get_boolean(["simpleDisplayMode"])
+
+    self.config["displayActiveFilament"] = self._settings.get_boolean(["displayActiveFilament"])
+    self.config["filamentSource"] = self._settings.get(["filamentSource"])
+    self.config["filamentSources"] = self._settings.get(["filamentSources"])
 
     self.mmu["state"] = self._settings.get(["mmuState"])
     self.mmu["tool"] = self._settings.get(["mmuTool"])
+    self.mmu["previousTool"] = self._settings.get(["mmuPreviousTool"])
 
   # ======== SoftwareUpdatePlugin ========
   # https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html
   
   def get_update_information(self):
     githubUrl = "https://github.com/jukebox42/Octoprint-PrusaMMU"
-    pipPath = "{}/releases/{target_version}/download/Octoprint-PrusaMmu.zip".format(githubUrl)
+    pipPath = "/releases/{target_version}/download/Octoprint-PrusaMmu.zip"
     # Define the configuration for your plugin to use with the Software Update.
     return dict(
 	    PrusaMMU=dict(
-        displayName=self._plugin_name,
+        displayName=PLUGIN_NAME,
         displayVersion=self._plugin_version,
 
         # version check: github repository
@@ -309,7 +367,7 @@ class PrusaMMUPlugin(octoprint.plugin.TemplatePlugin,
         current=self._plugin_version,
 
         # update method: pip
-        pip=pipPath
+        pip=githubUrl+pipPath
       )
     )
 
