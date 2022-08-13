@@ -4,7 +4,8 @@ layout: plugin
 id: prusammu
 title: Prusa MMU
 description: This plugin adds Prusa MMU2 support to OctoPrint. The active filament will be displayed in the navbar and you will be prompted to select which filament to use when slicing in "MMU2S Single" mode. Other settings are available to name each tool and set defaults. This plugin only works for a Prusa printer with an MMU2.
-authors: jukebox42
+authors:
+- jukebox42
 license: AGPLv3
 
 date: 2022-08-01

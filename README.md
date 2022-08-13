@@ -5,6 +5,9 @@ displayed in the navbar and you will be prompted to select which filament to use
 "MMU2S Single" mode. Other settings are available to name each tool and set defaults. This plugin
 only works for a Prusa printer with an MMU2.
 
+This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
+plugin. I wanted to try and take it a step further.
+
 Install via the bundled [Plugin Manager](https://docs.octoprint.org/en/master/bundledplugins/pluginmanager.html)
 or manually by selecting the latest zip:
 
