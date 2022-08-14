@@ -6,6 +6,7 @@
     <label class="control-label">{{ _("Filament Label Source") }}</label>
     <div class="controls">
       <select data-bind="
+        enable: settings.plugins.prusammu.filamentSources().length > 1,
         options: settings.plugins.prusammu.filamentSources,
         optionsText: 'name',
         optionsValue: 'id',
@@ -20,16 +21,16 @@
       </span>
 
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'spoolManager'">
-        <p><strong>Spool Manager:</strong> {{ _("To manage filament use the Spool tab and select the correct tool each filament spool is connected to.") }}</p>
+        <p><strong>Spool Manager:</strong><br /> {{ _("To manage filament use the Spool tab and select the correct tool each filament spool is connected to.") }}</p>
       </div>
 
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'filamentManager'">
-        <p><strong>Filament Manager:</strong> {{ _("To manage filament use the Filament Manager section in the left sidebar.") }}</p>
+        <p><strong>Filament Manager:</strong><br /> {{ _("To manage filament use the Filament Manager section in the left sidebar.") }}</p>
         <p>{{ _("Note: FilamentManager does not support color so no color will be shown.") }}</p>
       </div>
 
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'gcode'">
-        <p><strong>GCode:</strong> {{ _("Filament names and colors will be extracted from the print file when available.") }}</p>
+        <p><strong>GCode:</strong><br /> {{ _("Filament names and colors will be extracted from the print file when available.") }}</p>
       </div>
     </div>
   </div>
@@ -55,7 +56,7 @@
     <label class="control-label">{{ _("Timeout") }}</label>
     <div class="controls">
       <div class="input-append">
-        <input type="number" class="input-mini text-right" class="input-block-level" data-bind="value: settings.plugins.prusammu.timeout">
+        <input type="number" min="1" pattern="[0-9]+" class="input-mini text-right" class="input-block-level" data-bind="value: settings.plugins.prusammu.timeout">
         <span class="add-on">{{ _("seconds") }}</span>
       </div>
       <span class="help-block">{{ _("After this given time, the dialog closes and the print will go on as usual. This means you have to select the filament at your printer.") }}</span>
