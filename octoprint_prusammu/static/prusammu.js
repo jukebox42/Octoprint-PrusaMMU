@@ -3,6 +3,8 @@ $(() => {
   const PLUGIN_NAME = "prusammu";
   const LOG_PLUGIN_NAME = `plugin_${PLUGIN_NAME}`;
   const STATES = {
+    NOT_FOUND: "NOT_FOUND",
+    STARTING: "STARTING",
     OK: "OK",
     LOADED: "LOADED",
     UNLOADING: "UNLOADING",
@@ -30,13 +32,81 @@ $(() => {
     self.debug = ko.observable(DEBUG);
     self.isSimpleDisplayMode = ko.observable(false);
     self.shouldShowNav = ko.observable(false);
-    self.navText = ko.observable("Not Found");
-    self.navColor = ko.observable("inherited");
-    self.navIcon = ko.observable("fa-times");
+
+    self.navActionText = ko.observable("Not Found");
+    self.navActionIcon = ko.observable("fa-times");
+
+    self.navToolText = ko.observable("");
+    self.navToolColor = ko.observable("inherited");
+    self.navToolIcon = ko.observable("");
+    self.navPreviousToolText = ko.observable("");
+    self.navPreviousToolColor = ko.observable("inherited");
 
     /* =============================
      * =====   Nav Functions   =====
      * ============================= */
+
+    /**
+     * Returns the text of the mmu state.
+     * 
+     * @param {string} state - The state of the MMU from the backend
+     * @param {number|string} tool - The tool number, ensures we dont have a weird state or ""
+     * @param {[{id, name, type, color, enabled}, ...]} filament - The filament object representing
+     *                                                              the tool (see getFilamentList())
+     */
+    const getNavActionText = (state, tool, filament, hasPrevious) => {
+      if (state === "" || state === STATES.NOT_FOUND) {
+        return gettext("Not Found"); 
+      }
+
+      switch (state) {
+        case STATES.STARTING:
+          return gettext("Starting...");
+        case STATES.OK:
+          return gettext("Ready");
+        case STATES.UNLOADING:
+          if (hasPrevious) {
+            return gettext("Changing Filament...");
+          }
+          return gettext("Unloading...");
+        case STATES.LOADING:
+          if (hasPrevious) {
+            return gettext("Changing Filament...");
+          }
+          return gettext("Loading...");
+        case STATES.ATTENTION:
+          return gettext("Needs Attention!");
+        case STATES.PAUSED_USER:
+          return gettext("Awaiting User Input!");
+      }
+
+      return getFilamentDisplayName(tool, filament);
+    };
+
+    /**
+     * Get the icon class that represewnts the state for the nav. Returns the ? if unknown.
+     * 
+     * @param {string} state - The state of the MMU
+     */
+     const getNavActionIcon = (state) => {
+      const iconStates = {
+        [STATES.NOT_FOUND]: "fa-times",
+        [STATES.STARTING]: "fa-spinner fa-spin",
+        [STATES.OK]: "fa-check",
+        [STATES.PAUSED_USER]: "fa-fingerprint",
+        [STATES.ATTENTION]: "fa-exclamation-triangle",
+      };
+      if (Object.keys(iconStates).indexOf(state) !== -1) {
+        return iconStates[state];
+      }
+
+      // Action Icon only shows global states
+      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED) {
+        return ""
+      }
+      
+      return "fa-question";
+    }
 
     /**
      * Returns the text of the tool based on the state returned.
@@ -46,46 +116,31 @@ $(() => {
      * @param {[{id, name, type, color, enabled}, ...]} filament - The filament object representing
      *                                                              the tool (see getFilamentList())
      */
-    const getToolText = (tool, state, filament) => {
-       // This needs to be better. But if we load and we dont know the state then just assume it's
-       // ready.
-      if (state === "") {
-        return gettext("Not Found"); 
-      }
-
-      switch (state) {
-        case STATES.OK:
-          return gettext("Ready");
-        case STATES.UNLOADING:
-          return gettext("Unloading...");
-        case STATES.LOADING:
-          return gettext("Loading...");
-        case STATES.ATTENTION:
-          return gettext("Needs Attention!");
-        case STATES.PAUSED_USER:
-          return gettext("Awaiting User Input!");
-        default:
-          break;
-      }
-      // This likely means the printer isn't mounted.
+    const getNavToolText = (tool, state, filament) => {
       if (tool === "") {
         return gettext("Unknown Filament");
       }
 
-      // If we made it here then we should assume the tool is loaded.
-      return getFilamentDisplayName(tool, filament);
+      switch (state) {
+        case STATES.UNLOADING:
+          return gettext("Unloading") + " " + getFilamentDisplayName(tool, filament);
+        case STATES.LOADING:
+          return gettext("Loading") + " " + getFilamentDisplayName(tool, filament);
+      }
+
+      // If we made it here then the tool is loaded.
+      return  getFilamentDisplayName(tool, filament);
     };
 
     /**
-     * Gets the color of the tool from settings or leaves it inherited(grey).
+     * Gets the color of the tool from settings or leaves it inherited (grey).
      * 
      * @param {int|string} tool - The ID of the tool or ""
-     * @param {string} state - The state of the MMU
      * @param {[{id, name, type, color, enabled}, ...]} filament - The filament object representing
      *                                                              the tool (see getFilamentList())
      */
-    const getToolColor = (tool, state, filament) => {
-      if (tool === "" || state === STATES.OK) {
+    const getNavToolColor = (tool, filament) => {
+      if (tool === "") {
         return "inherited";
       }
 
@@ -93,64 +148,71 @@ $(() => {
     };
 
     /**
-     * Get the icon class that represewnts the state for the nav. Returns the ? if unknown.
+     * Get the icon class that represewnts the state for the tool.
      * 
      * @param {string} state - The state of the MMU
      */
-    const getNavIcon = (state) => {
+     const getNavToolIcon = (state) => {
       const iconStates = {
-        [STATES.OK]: "fa-check",
         [STATES.LOADED]: "fa-pen-fancy",
         [STATES.UNLOADING]: "fa-long-arrow-alt-up",
         [STATES.LOADING]: "fa-long-arrow-alt-down",
-        [STATES.PAUSED_USER]: "fa-fingerprint",
-        [STATES.ATTENTION]: "fa-exclamation-triangle",
       };
       if (Object.keys(iconStates).indexOf(state) !== -1) {
         return iconStates[state];
       }
       
-      return "fa-question";
+      return "";
     }
 
     /**
      * Update the nav display based on the state and tool (i.e. show the mmu state)
-     * 
+     *
+     * @param {string} state - The state of the MMU from the backend
      * @param {string} tool - The tool id. It _might_ have a T so we strip it here
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
-     * @param {string} state - The state of the MMU from the backend
      */
-    const updateNav = (tool, previousTool, state) => {
-      const toolId = tool === "" ? "" : parseInt(tool.replace("T", ""));
-      const prevToolId = previousTool === "" ? "" : parseInt(previousTool.replace("T", ""));
-
+    const updateNav = (state, tool, previousTool) => {
+      const toolId = parseInt(tool);
+      const previousToolId = parseInt(previousTool);
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
-      const currentFilament = filamentList.find(f => f.id === toolId + 1);
-      const previousFilament = filamentList.find(f => f.id === prevToolId + 1);
+      const currentFilament = filamentList.find(f => f.index === toolId);
+      const previousFilament = filamentList.find(f => f.index === previousToolId);
 
-      
-      // TODO: update this to show two icons, unloading and loading
-      if (state === STATES.UNLOADING) {
-        log("updateNav Unloading", previousFilament)
-        self.navColor(getToolColor(toolId, state, previousFilament));
-        self.navText(getToolText(toolId, state, previousFilament));
+      // global state icon & text
+      self.navActionText(getNavActionText(state, toolId, currentFilament, !!previousFilament));
+      self.navActionIcon(getNavActionIcon(state));
+
+      // Filament specific icons & text
+      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED) {
+        if (previousTool && state !== STATES.LOADED) {
+          self.navPreviousToolColor(getNavToolColor(previousToolId, previousFilament));
+          self.navPreviousToolText(getNavToolText(previousToolId, STATES.UNLOADING, previousFilament));
+        } else {
+          self.navPreviousToolColor("inherited");
+          self.navPreviousToolText("");
+        }
+        self.navToolColor(getNavToolColor(toolId, currentFilament));
+        self.navToolText(getNavToolText(toolId, state, currentFilament));
+        self.navToolIcon(getNavToolIcon(state))
       } else {
-        log("updateNav NOT Unloading", currentFilament)
-        self.navText(getToolText(toolId, state, currentFilament));
-        self.navColor(getToolColor(toolId, state, currentFilament));
+        self.navToolColor("inherited");
+        self.navToolText("");
+        self.navToolIcon("");
+        self.navPreviousToolColor("inherited");
+        self.navPreviousToolText("");
       }
-      self.navIcon(getNavIcon(state));
 
       log(
         "updateNav",
         { 
-          "Params": { "tool": tool, "previousTool": previousTool, "state": state },
+          "params": { "tool": toolId, "previousTool": previousToolId, "state": state },
           "currentFilament": currentFilament,
           "previousFilament": previousFilament,
-          "navText": self.navText(),
-          "navColor": self.navColor(),
-          "navIcon": self.navIcon(),
+          "action": { "text": self.navActionText(), "icon": self.navActionIcon() },
+          "tool": { "text": self.navToolText(), "icon": self.navActionIcon(), "color": self.navToolColor() },
+          "prevTool": { "text": self.navPreviousToolText(), "color": self.navPreviousToolColor() },
         }
       );
     };
@@ -188,7 +250,7 @@ $(() => {
     const drawSelectOption = (filament) => {
       const color = getFilamentDisplayColor(filament);
       const icon = `<i class="fas fa-pen-fancy" style="color: ${color}"></i> `;
-      return icon + getFilamentDisplayName((parseInt(filament.id) -1), filament);
+      return icon + getFilamentDisplayName(filament.index, filament);
     };
 
     /**
@@ -218,7 +280,7 @@ $(() => {
       const filament = self.getFilamentList();
       filament.forEach(f => {
         // Made a mess, I should have not increased the index anywhere but the display, or not at all...
-        selections[f.id - 1] = drawSelectOption(f);
+        selections[f.index] = drawSelectOption(f);
       });
 
       const opts = {
@@ -265,7 +327,7 @@ $(() => {
           closeModal();
           break;
         case "nav":
-         updateNav(data.tool, data.previousTool, data.state);
+         updateNav(data.state, data.tool, data.previousTool);
           break;
         // case "debug": these just exist to get logged and we do that above.
       }
@@ -276,11 +338,9 @@ $(() => {
      * example, if your plugin needs to compute persisted settings from a custom view model.
      */
     self.onSettingsBeforeSave = function () {
+      log("onSettingsBeforeSave");
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
-
-      // If a user changes a filament in settings mid print we should listen for that and redraw.
-      updateNav(self.settings.mmuTool(), self.settings.mmuPreviousTool(), self.settings.mmuState());
     };
 
     /**
@@ -295,36 +355,11 @@ $(() => {
      * load the printer state.
      */
     self.onStartupComplete = function() {
+      log("onStartupComplete");
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
-      self.checkPrinterState();
+      OctoPrint.simpleApiCommand(PLUGIN_NAME, "getmmu");
     };
-
-    /**
-     * The server has connected to the printer.
-     * 
-     * @param {{port: int, baudrate: int}} payload - The data related to printer
-     */
-    self.onEventConnected = function(payload) {
-      log("onEventConnected", payload);
-      self.checkPrinterState();
-    };
-
-    /**
-     * The server has disconnected from the printer. Used to zero out the MMU data on the nav.
-     */
-    self.onEventDisconnected = function() {
-      log("onEventDisconnected");
-      updateNav("", "", "");
-    };
-
-    /**
-     * The print has completed successfully.
-     */
-    self.onEventPrintDone = function() {
-      log("onEventPrintDone");
-      self.checkPrinterState();
-    }
 
     /* =============================
      * ==== Filament Functions  ====
@@ -340,53 +375,65 @@ $(() => {
       filament = self.settings.filament().map(f => {
         return {
           enabled: f.enabled(),
-          id: f.id(),
+          id: parseInt(f.id()),
+          index: parseInt(f.id()) - 1,
           name: f.name(),
           type: "",
           color: f.color(),
         };
       }).filter(f => f.enabled);
-      log("getFilament Start", filament);
+      log("getFilament Start(internal)", filament);
 
       if (self.filamentSources.filamentManager !== null && self.settings.filamentSource() === "filamentManager") {
         filament = [];
 
-        const spools = self.filamentSources.filamentManager.selectedSpools();
-        spools?.forEach((spool, i) => {
-          if (!spool || i >= 5) {
-            return;
-          }
-          filament.push({
-            enabled: true,
-            id: i + 1,
-            name: spool.name,
-            type: spool.profile.material,
-            color: spool.color
+        try {
+          const spools = self.filamentSources.filamentManager.selectedSpools();
+          spools?.forEach((spool, i) => {
+            if (!spool || i >= 5) {
+              return;
+            }
+            filament.push({
+              enabled: true,
+              id: i + 1,
+              index: i,
+              name: spool.name,
+              type: spool.profile.material,
+              color: spool.color
+            });
           });
-        });
-        log("getFilament filamentManager", filament, spools);
+          log("getFilament filamentManager", filament, spools);
+        } catch(e) {
+          console.error("prusammu Error: getFilament filamentManager failed.", "Create a github issue with the following:", e)
+        }
       } else if (self.filamentSources.spoolManager !== null && self.settings.filamentSource() === "spoolManager") {
         filament = [];
 
-        const spools = self.filamentSources.spoolManager.api_getSelectedSpoolInformations();
-        spools?.forEach(spool => {
-          if (!spool || i >= 5) {
-            return;
-          }
-          filament.push({
-            enabled: true,
-            id: spool.toolIndex + 1,
-            name: spool.spoolName,
-            type: spool.material,
-            color: spool.color
+        try {
+          const spools = self.filamentSources.spoolManager.api_getSelectedSpoolInformations();
+          spools?.forEach(spool => {
+            if (!spool || i >= 5) {
+              return;
+            }
+            filament.push({
+              enabled: true,
+              id: parseInt(spool.toolIndex) + 1,
+              index: parseInt(spool.toolIndex),
+              name: spool.spoolName,
+              type: spool.material,
+              color: spool.color
+            });
           });
-        });
-        log("getFilament SpoolManager", filament, spools);
+          log("getFilament SpoolManager", filament, spools);
+        } catch(e) {
+          console.error("prusammu Error: getFilament SpoolManager failed.", "Create a github issue with the following:", e)
+        }
       } else if (self.settings.filamentSource() === "gcode") {
         filament = self.settings.gcodeFilament().map(f => {
           return {
             enabled: true,
-            id: f.id(),
+            id: parseInt(f.id()),
+            index: parseInt(f.id()) - 1,
             name: f.name(),
             type: "",
             color: f.color(),
@@ -398,11 +445,11 @@ $(() => {
       // Catchall if we got zero back, default to showing something.
       if (filament.length === 0) {
         filament = [
-          {id: 1, name: "", type: "", color: "", enabled: true},
-          {id: 2, name: "", type: "", color: "", enabled: true},
-          {id: 3, name: "", type: "", color: "", enabled: true},
-          {id: 4, name: "", type: "", color: "", enabled: true},
-          {id: 5, name: "", type: "", color: "", enabled: true},
+          {id: 1, index: 0, name: "", type: "", color: "", enabled: true},
+          {id: 2, index: 1, name: "", type: "", color: "", enabled: true},
+          {id: 3, index: 2, name: "", type: "", color: "", enabled: true},
+          {id: 4, index: 3, name: "", type: "", color: "", enabled: true},
+          {id: 5, index: 4, name: "", type: "", color: "", enabled: true},
         ];
         log("getFilament fallback", filament);
       }
@@ -418,7 +465,6 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayName = (tool, filament) => {
-      log("getFilamentDisplayName", tool, filament);
       try {
         if (!filament.name) {
           return gettext(`Filament ${(tool + 1)}`);
@@ -441,49 +487,12 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayColor = (filament) => {
-      log("getFilamentDisplayColor", filament);
       return filament && filament.color ? filament.color : "inherited";
     }
 
     /* =============================
      * =====  Misc. Functions  =====
      * ============================= */
-
-    /**
-     * We get the printer state to avoid tool getting "stuck" issues and showing the wrong state
-     * (like filament loaded when printer is off). There's probably a cleaner way to do this but
-     * I'm too lazy to figure it out.
-     */
-    self.checkPrinterState = () => {
-      // This will fail if the printer isn't mounted.
-      OctoPrint.printer.getFullState({exclude: ["temperature", "sd"]}).then(ret => {
-        try {
-          log("getFullState", ret);
-          const flags = ret.state.flags;
-          // If the printer is "ready", then it's not printing so show ready. Also clear out any
-          // values, this is hoakey but works.
-          if (flags.ready && !flags.printing && !flags.paused) {
-            const mmuState = ret.state.text === "Operational" ? "OK" : ""
-            self.global_settings.saveData({
-              plugins: {
-                prusammu: {
-                  mmuState: mmuState,
-                  mmuTool: "",
-                }
-              }
-            });
-            updateNav("", "", mmuState); // send it the "ready" signal.
-            return;
-          }
-          const tempMmuState = self.settings.mmuState();
-          const tempMmuTool = self.settings.mmuTool();
-          const tempMmuPreviousTool = self.settings.mmuPreviousTool();
-          return updateNav(tempMmuTool, tempMmuPreviousTool, tempMmuState);
-        } catch (e) {
-          console.error(`${LOG_PLUGIN_NAME}: onStartupComplete Error`, e);
-        }
-      });
-    };
 
     /**
      * Simple function to log out debug messages if DEBUG is on. Use like you would console.log().
@@ -494,7 +503,9 @@ $(() => {
       if (!DEBUG) {
         return;
       }
-      console.log(String.fromCodePoint(0x1F6A9), `${LOG_PLUGIN_NAME}:`, ...args);
+      const d = new Date();
+      const showtime = `[${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}]`
+      console.log(String.fromCodePoint(0x1F6A9), showtime, `${LOG_PLUGIN_NAME}:`, ...args);
     }
   }
 

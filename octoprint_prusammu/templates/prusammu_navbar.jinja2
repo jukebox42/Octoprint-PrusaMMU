@@ -1,8 +1,23 @@
-<a href="javascript:void(0)" id="navbar_plugin_prusammu_a" data-bind="click: openSettings, visible: shouldShowNav">
+<a href="javascript:void(0)" data-bind="click: openSettings, visible: shouldShowNav">
   MMU:
-  <i class="fas" data-bind="style: { color: navColor }, class: navIcon, visible: navIcon !== '', attr: { title: navText }"></i>
-  <span data-bind="text: navText, hidden: isSimpleDisplayMode"></span>
+  <i class="fas fa-long-arrow-alt-up" data-bind="
+    style: { color: navPreviousToolColor },
+    hidden: navPreviousToolText() == '',
+    attr: { title: navPreviousToolText }
+  "></i>
+  <i class="fas" data-bind="
+    style: { color: navToolColor },
+    class: navToolIcon,
+    hidden: navToolIcon() == '',
+    attr: { title: navToolText }
+  "></i>
+  <i class="fas" data-bind=",
+    class: navActionIcon,
+    hidden: navActionIcon() == '',
+    attr: { title: navActionText }
+  "></i>
+  <span data-bind="text: navActionText, hidden: isSimpleDisplayMode"></span>
 </a>
-<a href="javascript:void(0)" id="navbar_plugin_prusammu_b" data-bind="click: openDebugSettings, visible: debug">
-  DEBUG
+<a href="javascript:void(0)" data-bind="click: openDebugSettings, if: debug()" style="position: absolute; left: -40px; top: 0; display: inline-block;">
+  <i class="fas fa-bug"></i>
 </a>
