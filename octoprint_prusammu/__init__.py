@@ -400,7 +400,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   
   def get_update_information(self):
     githubUrl = "https://github.com/jukebox42/Octoprint-PrusaMMU"
-    pipPath = "/releases/{target_version}/download/Octoprint-PrusaMmu.zip"
+    pipPath = "/releases/download/{target_version}/Octoprint-PrusaMmu.zip"
     # Define the configuration for your plugin to use with the Software Update.
     return dict(
 	    PrusaMMU=dict(
