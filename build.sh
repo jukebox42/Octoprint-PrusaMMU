@@ -1,6 +1,6 @@
 #!usr/bin/env bash
 
-# bash build.sh YYYY.M.D n
+# bash build.sh YYYY.M.D
 
 echo "=== Building PrusaMMU ===";
 echo "";
@@ -11,7 +11,6 @@ echo "Settings:";
 version="${1:-$dt}";
 debug="${2:-y}";
 echo "- Version: $version";
-echo "- Debug $debug";
 echo ""
 
 # Delete and recreate the build directory
@@ -33,14 +32,6 @@ cp setup.py Octoprint-PrusaMmu/setup.py
 echo -n "Writing plugin version... "
 sed -i "s/plugin_version = \"VERSION\"/plugin_version = \"$version\"/" Octoprint-PrusaMmu/setup.py
 echo "done"
-
-# Disable debugs
-if [ "$debug" == "n" ]; then
-  echo -n "Disabling debug... " 
-  sed -i 's/DEBUG = true/DEBUG = false/' Octoprint-PrusaMmu/octoprint_prusammu/static/prusammu.js
-  sed -i 's/NOISY_DEBUG = True/NOISY_DEBUG = False/' Octoprint-PrusaMmu/octoprint_prusammu/__init__.py
-  echo "done"
-fi
 
 # Compress the build directory
 echo -n "Zipping... ";
