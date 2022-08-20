@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 
 class SettingsKeys():
+  DEBUG="debug"
   TIMEOUT="timeout"
   USE_DEFAULT_FILAMENT="useDefaultFilament"
   DISPLAY_ACTIVE_FILAMENT="displayActiveFilament"

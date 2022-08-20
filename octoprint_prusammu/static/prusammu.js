@@ -1,5 +1,4 @@
 $(() => {
-  const DEBUG = true;
   const PLUGIN_NAME = "prusammu";
   const LOG_PLUGIN_NAME = `plugin_${PLUGIN_NAME}`;
   const STATES = {
@@ -12,14 +11,15 @@ $(() => {
     PAUSED_USER: "PAUSED_USER",
     ATTENTION: "ATTENTION",
   }
+  const FILAMENT_SOURCE_NAMES = {
+    SPOOL_MANAGER: "spoolManager",
+    FILAMENT_MANAGER: "filamentManager",
+  };
 
   function PrusaMMU2ViewModel(parameters) {
     const self = this;
-    if (DEBUG) {
-      window.PrusaMMU2 = self;
-    }
 
-    self.global_settings = parameters[0]; // settingsViewModel
+    self.globalSettings = parameters[0]; // settingsViewModel
     self.loginState = parameters[1]; // loginStateViewModel
     // self.printerState = parameters[2]; // printerStateViewModel
     self.filamentSources = {
@@ -28,8 +28,7 @@ $(() => {
     };
     self.settings = {};
     self.modal = undefined;
-  
-    self.debug = ko.observable(DEBUG);
+
     self.isSimpleDisplayMode = ko.observable(false);
     self.shouldShowNav = ko.observable(false);
 
@@ -173,8 +172,8 @@ $(() => {
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
      */
     const updateNav = (state, tool, previousTool) => {
-      const toolId = parseInt(tool);
-      const previousToolId = parseInt(previousTool);
+      const toolId = parseInt(tool, 10);
+      const previousToolId = parseInt(previousTool, 10);
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
       const currentFilament = filamentList.find(f => f.index === toolId);
@@ -193,6 +192,7 @@ $(() => {
           self.navPreviousToolColor("inherited");
           self.navPreviousToolText("");
         }
+        // TODO: handle the final unload where we dont have a "current filament".
         self.navToolColor(getNavToolColor(toolId, currentFilament));
         self.navToolText(getNavToolText(toolId, state, currentFilament));
         self.navToolIcon(getNavToolIcon(state))
@@ -221,20 +221,8 @@ $(() => {
      * Used for the click event on the nav to open the plugin settings.
      */
      self.openSettings = () => {
-      self.global_settings.show();
-      self.global_settings.selectTab("#settings_plugin_prusammu");
-    };
-
-    /**
-     * I'm lazy and constantly reopening settings is more work than I want to put in.
-     */
-    self.openDebugSettings = () => {
-      self.global_settings.show();
-      self.global_settings.selectTab("#settings_plugin_pluginmanager");
-      // Find the plugin manager view and open the repo button.
-      self.global_settings.allViewModels.find(
-          v => v.constructor.name === "PluginManagerViewModel"
-        ).showRepository(true);
+      self.globalSettings.show();
+      self.globalSettings.selectTab("#settings_plugin_prusammu");
     };
 
     /* =============================
@@ -259,7 +247,7 @@ $(() => {
      * @param {int} index - the ID of the tool to use 
      */
     const selectCallback = (index) => {
-      log("selectCallback", index, `(Filament ${(index + 1)})`);
+      log("selectCallback", index);
       return OctoPrint.simpleApiCommand(PLUGIN_NAME, "select", { choice: index });
     };
 
@@ -285,7 +273,7 @@ $(() => {
 
       const opts = {
         title: gettext("Prusa MMU"),
-        message: gettext("Select the filament spool:"),
+        message: gettext(`Select the filament spool: (From ${self.settings.filamentSource()})`),
         selections: selections,
         maycancel: true,
         onselect: (index) => {
@@ -313,7 +301,7 @@ $(() => {
      * @param {string} plugin - The name of the plugin that triggered the message.
      * @param {data} - The data sent from the api.
      */
-    self.onDataUpdaterPluginMessage = function(plugin, data) {
+    self.onDataUpdaterPluginMessage = (plugin, data) => {
       if (!self.loginState.isUser() || plugin !== PLUGIN_NAME) {
         return;
       }
@@ -337,7 +325,7 @@ $(() => {
      * Called just before the settings view model is sent to the server. This is useful, for
      * example, if your plugin needs to compute persisted settings from a custom view model.
      */
-    self.onSettingsBeforeSave = function () {
+    self.onSettingsBeforeSave = () => {
       log("onSettingsBeforeSave");
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
@@ -346,15 +334,15 @@ $(() => {
     /**
      * Called per view model before attempting to bind it to its binding targets.
      */
-    self.onBeforeBinding = function () {
-      self.settings = self.global_settings.settings.plugins.prusammu;
+    self.onBeforeBinding = () => {
+      self.settings = self.globalSettings.settings.plugins.prusammu;
     };
 
     /**
      * Called after the startup of the web app has been completed. Used to show/hide the nav and
      * load the printer state.
      */
-    self.onStartupComplete = function() {
+    self.onStartupComplete = () => {
       log("onStartupComplete");
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
@@ -375,16 +363,16 @@ $(() => {
       filament = self.settings.filament().map(f => {
         return {
           enabled: f.enabled(),
-          id: parseInt(f.id()),
-          index: parseInt(f.id()) - 1,
+          id: parseInt(f.id(), 10),
+          index: parseInt(f.id(), 10) - 1,
           name: f.name(),
           type: "",
           color: f.color(),
         };
       }).filter(f => f.enabled);
-      log("getFilament Start(internal)", filament);
+      log("getFilament Start(internal)", filament, "Source Target:", self.settings.filamentSource());
 
-      if (self.filamentSources.filamentManager !== null && self.settings.filamentSource() === "filamentManager") {
+      if (self.filamentSources.filamentManager !== null && self.settings.filamentSource() === FILAMENT_SOURCE_NAMES.FILAMENT_MANAGER) {
         filament = [];
 
         try {
@@ -404,21 +392,21 @@ $(() => {
           });
           log("getFilament filamentManager", filament, spools);
         } catch(e) {
-          console.error("prusammu Error: getFilament filamentManager failed.", "Create a github issue with the following:", e)
+          console.error("Create a github issue with the following:", "prusammu Error: getFilament filamentManager failed.", e)
         }
-      } else if (self.filamentSources.spoolManager !== null && self.settings.filamentSource() === "spoolManager") {
+      } else if (self.filamentSources.spoolManager !== null && self.settings.filamentSource() === FILAMENT_SOURCE_NAMES.SPOOL_MANAGER) {
         filament = [];
 
         try {
           const spools = self.filamentSources.spoolManager.api_getSelectedSpoolInformations();
           spools?.forEach(spool => {
-            if (!spool || i >= 5) {
+            if (!spool) {
               return;
             }
             filament.push({
               enabled: true,
-              id: parseInt(spool.toolIndex) + 1,
-              index: parseInt(spool.toolIndex),
+              id: parseInt(spool.toolIndex, 10) + 1,
+              index: parseInt(spool.toolIndex, 10),
               name: spool.spoolName,
               type: spool.material,
               color: spool.color
@@ -426,14 +414,14 @@ $(() => {
           });
           log("getFilament SpoolManager", filament, spools);
         } catch(e) {
-          console.error("prusammu Error: getFilament SpoolManager failed.", "Create a github issue with the following:", e)
+          console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolManager failed.", e)
         }
       } else if (self.settings.filamentSource() === "gcode") {
         filament = self.settings.gcodeFilament().map(f => {
           return {
             enabled: true,
-            id: parseInt(f.id()),
-            index: parseInt(f.id()) - 1,
+            id: parseInt(f.id(), 10),
+            index: parseInt(f.id(), 10) - 1,
             name: f.name(),
             type: "",
             color: f.color(),
@@ -465,18 +453,19 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayName = (tool, filament) => {
+      const index = self.settings.indexAtZero() ? tool : tool + 1;
       try {
         if (!filament.name) {
-          return gettext(`Filament ${(tool + 1)}`);
+          return gettext(`Filament ${index}`);
         }
 
-        let display = `${filament.id}: ${filament.name}`;
+        let display = `${index}: ${filament.name}`;
         if (filament.type) {
           display += ` (${filament.type})`;
         }
         return display;
       } catch(e) {
-        return `${(tool + 1)}: ${gettext("Unknown Filament")}`;
+        return `${index}: ${gettext("Unknown Filament")}`;
       }
     }
 
@@ -495,12 +484,12 @@ $(() => {
      * ============================= */
 
     /**
-     * Simple function to log out debug messages if DEBUG is on. Use like you would console.log().
+     * Simple function to log out debug messages if debug is on. Use like you would console.log().
      * 
      * @param {...any} args - arguments to pass directly to console.warn.
      */
     const log = (...args) => {
-      if (!DEBUG) {
+      if (!self.settings.debug()) {
         return;
       }
       const d = new Date();

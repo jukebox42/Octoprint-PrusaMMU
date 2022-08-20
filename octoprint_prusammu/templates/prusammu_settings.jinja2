@@ -1,6 +1,6 @@
 <h2>{{ _("Prusa MMU") }}</h2>
 <form class="form-horizontal">
-  <h3>{{ _("Filament Labels") }}</h3>
+  <h3>{{ _("Filament") }}</h3>
 
   <div class="control-group">
     <label class="control-label">{{ _("Filament Label Source") }}</label>
@@ -22,6 +22,7 @@
 
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'spoolManager'">
         <p><strong>Spool Manager:</strong><br /> {{ _("To manage filament use the Spool tab and select the correct tool each filament spool is connected to.") }}</p>
+        <p style="color:red">{{ _("IMPORTANT: You must disable 'Reminder for verifying the selected spool.' under Notification in the Spool Manager settings or the select filament feature will not work.") }}</p>
       </div>
 
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'filamentManager'">
@@ -38,7 +39,7 @@
   <div data-bind="visible: settings.plugins.prusammu.filamentSource() == 'prusammu'">
     <div data-bind="foreach: settings.plugins.prusammu.filament">
       <div class="control-group">
-        <label class="control-label"><strong data-bind="text: $index() + 1"></strong></label>
+        <label class="control-label"><strong data-bind="text: $index() + ($parent.settings.plugins.prusammu.indexAtZero() ? 0 : 1)"></strong></label>
         <div class="controls">
           <input type="checkbox" data-bind="checked: $data.enabled" />
           <input type="text" data-bind="value: $data.name" />
@@ -46,6 +47,16 @@
           <input type="color" class="input-mini" data-bind="value: $data.color" />
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
+        {{ _("Index at zero") }}
+      </label>
+      <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
     </div>
   </div>
 
@@ -71,7 +82,10 @@
         enable: settings.plugins.prusammu.useDefaultFilament,
         options: settings.plugins.prusammu.filament,
         optionsText: function(fill) {
-          return 'Filament ' + fill.id() + ': ' + fill.name()
+          if(settings.plugins.prusammu.filamentSource() == 'prusammu') {
+           return 'Filament ' + (settings.plugins.prusammu.indexAtZero() ? fill.id() - 1 : fill.id()) + ': ' + fill.name()
+          }
+          return 'Filament ' + (settings.plugins.prusammu.indexAtZero() ? fill.id() - 1 : fill.id())
         },
         optionsValue: function(fill) {
           return fill.id() - 1
@@ -89,9 +103,9 @@
     <div class="controls">
       <label class="checkbox">
         <input type="checkbox" data-bind="checked: settings.plugins.prusammu.displayActiveFilament" />
-        {{ _("Display In Navbar") }}
+        {{ _("Display in navbar") }}
       </label>
-      <span class="help-block">{{ _("Note: Displaying the active filament in the navbar can be unreliable at times. The tool information cannot be retrieved during a print, it's only reported during a change. Instead, we try to remember decisions made and save it so it's available on subsequent loads.") }}</span>
+      <span class="help-block">{{ _("Check if you want to see the active filament as well as MMU state change in the navbar.") }}</span>
     </div>
   </div>
 
@@ -99,9 +113,21 @@
     <div class="controls">
       <label class="checkbox">
         <input type="checkbox" data-bind="checked: settings.plugins.prusammu.simpleDisplayMode" />
-        {{ _("Simple Display Mode") }}
+        {{ _("Simple display mode") }}
       </label>
       <span class="help-block">{{ _("Check to remove the text from the navbar item to save space.") }}</span>
+    </div>
+  </div>
+
+  <h3>{{ _("Debug") }}</h3>
+
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.debug" />
+        {{ _("Debug") }}
+      </label>
+      <span class="help-block">{{ _("Warning: Enabling debug will make Prusa MMU noisy in logs and devtools. May also slow down your print.") }}</span>
     </div>
   </div>
 

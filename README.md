@@ -187,14 +187,23 @@ to update the following areas:
     your plugin to expose a javascript function the returns a list of filament and what tool they
     represent.
 
+### Debugging
+
+Enable debug logs via the settings menu, ensure logging is set to the debug level for prusammu.
+
+Octoprint exposes the viewmodel via:
+```javascript
+> OctoPrint.coreui.viewmodels.prusaMMU2ViewModel
+```
+
 ### Building
 
 You can manually build this project into a zip by running:
 ```
-$ bash build.sh [VERSION DEBUG]
+$ bash build.sh [VERSION]
 
 # ex:
-$ bash build.sh 2022.7.4 n
+$ bash build.sh 2022.7.4
 === Building PrusaMMU ===
 
 Settings:

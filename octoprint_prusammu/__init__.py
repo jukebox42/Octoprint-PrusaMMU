@@ -14,10 +14,6 @@ from octoprint_prusammu.common.PluginEventKeys import PluginEventKeys
 from octoprint_prusammu.common.SettingsKeys import SettingsKeys
 from octoprint_prusammu.common.StateKeys import StateKeys, DEFAULT_STATE
 
-
-# turning this on will cause every log write to surface as a console.log
-NOISY_DEBUG = True
-
 # === Constants ===
 DEFAULT_TIMEOUT = 30
 PLUGIN_NAME = "prusammu"
@@ -57,24 +53,24 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== Startup ========
 
   def on_after_startup(self):
-    self.log("on_after_startup")
+    self._log("on_after_startup")
     
     try:
       # After startup set the sources we have available
       # TODO: Move this out of settings
       sources = FILAMENT_SOURCE_DEFAULT
       if "filamentmanager" in self._plugin_manager.plugins:
-        self.log("Found Filament Manager")
+        self._log("Found Filament Manager")
         sources.append(dict(name="Filament Manager", id="filamentManager"))
       if "SpoolManager" in self._plugin_manager.plugins:
-        self.log("Found Spool Manager")
+        self._log("Found Spool Manager")
         sources.append(dict(name="Spool Manager", id="spoolManager"))
       self._settings.set([SettingsKeys.FILAMENT_SOURCES], sources)
       self._settings.save()
     except Exception as e:
-      self.log("Failed to load sources {}".format(str(e)))
+      self._log("Failed to load sources {}".format(str(e)))
 
-    self.refresh_config()
+    self._refresh_config()
     self.mmu = DEFAULT_MMU_STATE
 
   # ======== TemplatePlugin ========
@@ -111,15 +107,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       if not isinstance(choice, int) or not choice < 5 or not choice >= 0:
         return abort(400, "{} is not a valid value for filament choice".format(choice+1))
 
-      self.log("on_api_command T{}".format(choice), debug=True)
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
+      self._log("on_api_command T{}".format(choice), debug=True)
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
       self._done_prompt(choice)
 
     if command == "getmmu":
       if not user_permission.can():
         return abort(403, "Insufficient permissions")
       
-      self.fire_event(PluginEventKeys.REFRESH_NAV)
+      self._fire_event(PluginEventKeys.REFRESH_NAV)
 
 
   # ======== Prompt ========
@@ -142,7 +138,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self._clean_up_prompt()
 
   def _done_prompt(self, command, tags=set()):
-    self.log("_done_prompt {}".format(command), debug=True)
+    self._log("_done_prompt {}".format(command), debug=True)
     self.states[StateKeys.SELECTED_FILAMENT] = command
     self._clean_up_prompt()
 
@@ -154,8 +150,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   # ======== Nav Updater ========
 
-  def update_navbar(self):
-    self.log("update_navbar:", obj=self.mmu, debug=True)
+  def _update_navbar(self):
+    self._log("update_navbar:", obj=self.mmu, debug=True)
     self._plugin_manager.send_plugin_message(
       self._identifier,
       dict(
@@ -181,22 +177,22 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return # passthrough
 
     if cmd.startswith("M109"):
-      self.log("gcode_queuing_hook_M109 command: {}".format(cmd), debug=True)
+      self._log("gcode_queuing_hook_M109 command: {}".format(cmd), debug=True)
       if self.states[StateKeys.SELECTED_FILAMENT] is not None:
         tool_cmd = "T{}".format(self.states[StateKeys.SELECTED_FILAMENT])
-        self.fire_event(PluginEventKeys.MMU_CHANGE,
+        self._fire_event(PluginEventKeys.MMU_CHANGE,
                         dict(tool=self.states[StateKeys.SELECTED_FILAMENT]))
         self.states[StateKeys.SELECTED_FILAMENT] = None
-        self.log("gcode_queuing_hook_M109 tool: {}".format(tool_cmd), debug=True)
+        self._log("gcode_queuing_hook_M109 tool: {}".format(tool_cmd), debug=True)
         return[(cmd,), (tool_cmd,)] # rewrite (append tool command)
       else:
         return # passthrough
 
     # Prompt for filament change
     if cmd.startswith("Tx"):
-      self.log("gcode_queuing_hook {}".format(cmd), debug=True)
+      self._log("gcode_queuing_hook {}".format(cmd), debug=True)
       if self._printer.set_job_on_hold(True):
-        self.fire_event(PluginEventKeys.SHOW_PROMPT)
+        self._fire_event(PluginEventKeys.SHOW_PROMPT)
       return None, # suppress
 
     return # passthrough
@@ -207,19 +203,19 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       # The printer will spam pause messages directly after an attention so ignore them
       if self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION:
         return line
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.PAUSED_USER))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.PAUSED_USER))
     elif "MMU => 'start'" in line:
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.STARTING))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.STARTING))
     elif "MMU not responding" in line:
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
     elif "MMU - ENABLED" in line or "MMU starts responding" in line:
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
     elif "MMU can_load" in line or "Unloading finished" in line:
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADING))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADING))
     # elif "mmu_get_response - begin move: unload" in line:
-    #   self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.UNLOADING))
+    #   self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.UNLOADING))
     elif "OO succeeded" in line:
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADED))
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADED))
 
     return line
 
@@ -244,15 +240,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
       # Show unloading if there's already a tool loaded and it's not the same tool
       if self.mmu[MmuKeys.STATE] == MmuStates.LOADED and self.mmu[MmuKeys.TOOL] != tool:
-        self.fire_event(PluginEventKeys.MMU_CHANGE,
+        self._fire_event(PluginEventKeys.MMU_CHANGE,
                         dict(state=MmuStates.UNLOADING,
                              tool=tool,
                              previousTool=self.mmu[MmuKeys.TOOL]))
         return
 
       # Otherwise assume it's a first time load
-      self.fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=tool))
-      self.log("gcode_sent_hook Tool: {} CMD: {}".format(tool, cmd), debug=True)
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=tool))
+      self._log("gcode_sent_hook Tool: {} CMD: {}".format(tool, cmd), debug=True)
     except:
       pass
 
@@ -260,7 +256,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   # ======== EventHandlerPlugin ========
 
-  def fire_event(self, key, payload=None):
+  def _fire_event(self, key, payload=None):
     self._event_bus.fire(key, payload=payload)
 
 
@@ -275,12 +271,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def on_event(self, event, payload=None):
     # This is fired at the end of the change event, we dont need it but other plugins might
     # if event == PluginEventKeys.MMU_CHANGED:
-    #   self.log("on_event {} with".format(event, obj=payload, debug=True)
+    #   self._log("on_event {} with".format(event, obj=payload, debug=True)
     #   return
 
     # Fired any time we detect a command that would update something about the MMU
     if event == PluginEventKeys.MMU_CHANGE:
-      self.log("on_event {} with".format(event), obj=payload, debug=True)
+      self._log("on_event {} with".format(event), obj=payload, debug=True)
       if MmuKeys.STATE not in payload:
         payload[MmuKeys.STATE] = self.mmu[MmuKeys.STATE]
       if MmuKeys.TOOL not in payload:
@@ -298,26 +294,26 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         state=None if MmuKeys.STATE not in payload else payload[MmuKeys.STATE],
         tool=None if MmuKeys.TOOL not in payload else payload[MmuKeys.TOOL],
         previousTool=None if MmuKeys.PREV_TOOL not in payload else payload[MmuKeys.PREV_TOOL])
-      self.fire_event(PluginEventKeys.MMU_CHANGED, self.mmu)
-      self.update_navbar()
+      self._fire_event(PluginEventKeys.MMU_CHANGED, self.mmu)
+      self._update_navbar()
       return
 
     # Fired to cause a refresh event on the UI
     if event == PluginEventKeys.REFRESH_NAV:
-      self.log("on_event {}".format(event), debug=True)
-      self.update_navbar()
+      self._log("on_event {}".format(event), debug=True)
+      self._update_navbar()
       return
 
     # Fired to prompt the user to select a filament
     if event == PluginEventKeys.SHOW_PROMPT:
-      self.log("on_event {}".format(event), debug=True)
+      self._log("on_event {}".format(event), debug=True)
       self._show_prompt()
       return
 
     # Handle disconenced event to set the mmu to Not Found (no printer...)
     if event == "Disconnected":
-      self.log("on_event {}".format(event), debug=True)
-      self.fire_event(PluginEventKeys.MMU_CHANGE,
+      self._log("on_event {}".format(event), debug=True)
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
                       dict(state= MmuStates.NOT_FOUND, tool="", previousTool=""))
 
     # Handle terminal states when printer is no longer printing to reset the MMU
@@ -326,19 +322,21 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       event == Events.PRINT_CANCELLED or
       (event == Events.PRINT_FAILED and self.mmu[MmuKeys.STATE] != MmuStates.ATTENTION)
     ):
-      self.log("on_event {}".format(event), debug=True)
-      self.fire_event(PluginEventKeys.MMU_CHANGE,
+      self._log("on_event {}".format(event), debug=True)
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
                       dict(state=MmuStates.OK, tool="", previousTool=""))
 
   # ======== SettingsPlugin ========
 
   def get_settings_defaults(self):
     return dict(
+      debug=False,
       timeout=DEFAULT_TIMEOUT,
       useDefaultFilament=False,
       displayActiveFilament=True,
       simpleDisplayMode=False,
       defaultFilament=-1,
+      indexAtZero=False,
       filamentSource=PLUGIN_NAME,
       filamentSources=FILAMENT_SOURCE_DEFAULT,
       filament=[
@@ -374,13 +372,14 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     if SettingsKeys.GCODE_FILAMENT not in data:
       data[SettingsKeys.GCODE_FILAMENT] = self._settings.get([SettingsKeys.GCODE_FILAMENT])
 
-    self.log("on_settings_save", debug=True)
+    self._log("on_settings_save", debug=True)
 
     # save settings
     octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
-    self.refresh_config()
+    self._refresh_config()
 
-  def refresh_config(self):
+  def _refresh_config(self):
+    self.config[SettingsKeys.DEBUG] = self._settings.get_boolean([SettingsKeys.DEBUG])
     self.config[SettingsKeys.SIMPLE_DISPLAY_MODE] = self._settings.get_boolean([
       SettingsKeys.SIMPLE_DISPLAY_MODE])
 
@@ -420,9 +419,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   # ======== Misc ========
 
-  def log(self, msg, obj=None, debug=False):
+  def _log(self, msg, obj=None, debug=False):
     if debug:
-      if NOISY_DEBUG:
+      if self.config[SettingsKeys.DEBUG]:
         if obj is not None:
           msg = "{} {}".format(msg, dumps(obj))
         self._logger.debug(msg)
