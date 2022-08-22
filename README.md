@@ -18,8 +18,8 @@ or manually by selecting the latest zip:
 - Set a timeout to auto-select an extruder
 - Enable/disable extruders, name them, and give them a color
 - Show/hide navbar item (and simplify the display)
-- Supports retriving filament data from [https://plugins.octoprint.org/plugins/SpoolManager/](Spool Manager)
-  and [https://plugins.octoprint.org/plugins/filamentmanager/](Filament Manager) if installed.
+- Supports retriving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
+  and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
 
 ## Screenshots
 
@@ -148,7 +148,7 @@ This is what's used to get the data for the prompt as well as navbar item. The r
 1-5 entries based on what's specified by the source.
 
 Returns:
-```json
+```javascript
 [
   {id: 1, index: 0, name: "", type: "", color: "", enabled: true},
   {id: 2, index: 1, name: "", type: "", color: "", enabled: true},

@@ -59,12 +59,16 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       # After startup set the sources we have available
       # TODO: Move this out of settings
       sources = FILAMENT_SOURCE_DEFAULT
-      if "filamentmanager" in self._plugin_manager.plugins:
+      filamentManager = self._plugin_manager.get_plugin_info("filamentmanager")
+      if filamentManager is not None and filamentManager.enabled:
         self._log("Found Filament Manager")
         sources.append(dict(name="Filament Manager", id="filamentManager"))
-      if "SpoolManager" in self._plugin_manager.plugins:
+
+      spoolManager = self._plugin_manager.get_plugin_info("SpoolManager")
+      if spoolManager is not None and spoolManager.enabled:
         self._log("Found Spool Manager")
         sources.append(dict(name="Spool Manager", id="spoolManager"))
+
       self._settings.set([SettingsKeys.FILAMENT_SOURCES], sources)
       self._settings.save()
     except Exception as e:
@@ -84,7 +88,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def get_assets(self):
     return dict(
-      js=["prusammu.js"]
+      js=["prusammu.js", "colorPick.js"],
+      css=["prusammu.css", "colorPick.css"],
     )
 
   # ======== SimpleApiPlugin ========
@@ -337,6 +342,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       simpleDisplayMode=False,
       defaultFilament=-1,
       indexAtZero=False,
+      classicColorPicker=False,
       filamentSource=PLUGIN_NAME,
       filamentSources=FILAMENT_SOURCE_DEFAULT,
       filament=[

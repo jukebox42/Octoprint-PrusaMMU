@@ -339,6 +339,13 @@ $(() => {
     };
 
     /**
+     * Called when the user opens the settings menu. This is when we bind the color pickers.
+     */
+    self.onSettingsShown = () => {
+      bindPickers();
+    };
+
+    /**
      * Called after the startup of the web app has been completed. Used to show/hide the nav and
      * load the printer state.
      */
@@ -370,7 +377,7 @@ $(() => {
           color: f.color(),
         };
       }).filter(f => f.enabled);
-      log("getFilament Start(internal)", filament, "Source Target:", self.settings.filamentSource());
+      log("getFilament internal", filament, "Source Target:", self.settings.filamentSource());
 
       if (self.filamentSources.filamentManager !== null && self.settings.filamentSource() === FILAMENT_SOURCE_NAMES.FILAMENT_MANAGER) {
         filament = [];
@@ -484,6 +491,38 @@ $(() => {
      * ============================= */
 
     /**
+     * Binds the color picker to the buttons in the settings menu. We call this every time the
+     * settings menu is opened but it will not rebind (see colorPicker.init) unless settings is
+     * saved, a settings save seems to destroy the settings view and rebuild it.
+     */
+    const bindPickers = () => {
+      const pallete = [
+        "#FFFFFF", "#f0f8ff", "#C0C0C0", "#808080", "#000000",
+        "#add8e6", "#008080", "#008b8b", "#0000FF", "#00008B",
+        "#00FF00", "#008000", "#006400", "#800080", "#9400d3",
+        "#fff700", "#daa520", "#d2b48c", "#8e4e24", "#cd7f32",
+        "#ffc0cb", "#FF0000", "#8b0000", "#cc5500", "#ff8c00",
+        "#ff003f", "#7df9ff", "#66ff00", "#bf00ff", "#ffff00"
+      ];
+      $("#settings_plugin_prusammu .color-dropdown").each((index, element) => {
+        $(element).colorPick({
+          initialColor: self.settings.filament()[index].color(),
+          paletteLabel: gettext("Filament color:"),
+          customLabel: gettext("Custom color:"),
+          recentLabel: gettext("Recent color:"),
+          allowCustomColor: true,
+          drawUp: (index > 2),
+          palette: pallete,
+          onColorSelected: function() {
+            const index = this.element.attr("data-index");
+            self.settings.filament()[index].color(this.color);
+            log("colorPick", index, this.color);
+          }
+        });
+      });
+    };
+
+    /**
      * Simple function to log out debug messages if debug is on. Use like you would console.log().
      * 
      * @param {...any} args - arguments to pass directly to console.warn.
@@ -495,7 +534,7 @@ $(() => {
       const d = new Date();
       const showtime = `[${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}]`
       console.log(String.fromCodePoint(0x1F6A9), showtime, `${LOG_PLUGIN_NAME}:`, ...args);
-    }
+    };
   }
 
   OCTOPRINT_VIEWMODELS.push({
