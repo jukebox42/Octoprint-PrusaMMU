@@ -3,7 +3,7 @@
   <h3>{{ _("Filament") }}</h3>
 
   <div class="control-group">
-    <label class="control-label">{{ _("Filament Label Source") }}</label>
+    <label class="control-label">{{ _("Filament label source") }}</label>
     <div class="controls">
       <select data-bind="
         enable: settings.plugins.prusammu.filamentSources().length > 1,
@@ -43,23 +43,18 @@
         <div class="controls">
           <input type="checkbox" data-bind="checked: $data.enabled" />
           <input type="text" data-bind="value: $data.name" />
-          <i class="fas fa-pen-fancy icon-large" data-bind="style: { color: $data.color }"></i>
-          <input type="color" class="input-mini" data-bind="value: $data.color" />
+          <i class="fas fa-pen-fancy icon-large" data-bind="style: { color: $data.color }, visible: $parent.settings.plugins.prusammu.classicColorPicker()"></i>
+          <input type="color" class="input-mini" data-bind="value: $data.color, visible: $parent.settings.plugins.prusammu.classicColorPicker()" />
+          <div class="btn-group" data-bind="hidden: $parent.settings.plugins.prusammu.classicColorPicker()">
+            <button type="button" class="btn color-dropdown dropdown-toggle" data-bind="attr: {'data-index': $index}">
+              <div class="colorPickButton colorPickButtonAlignments" data-bind="style: { color: $data.color, background: $data.color }"></div>
+              <span class="caret"></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
-        {{ _("Index at zero") }}
-      </label>
-      <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
-    </div>
-  </div>
-
 
   <h3>{{ _("Timeout") }}</h3>
 
@@ -75,7 +70,7 @@
   </div>
 
   <div class="control-group">
-    <label class="control-label">{{ _("Default Filament") }}</label>
+    <label class="control-label">{{ _("Default filament") }}</label>
     <div class="controls">
       <input type="checkbox" data-bind="checked: settings.plugins.prusammu.useDefaultFilament" />
       <select data-bind="
@@ -97,7 +92,7 @@
     </div>
   </div>
 
-  <h3>{{ _("Navbar Settings") }}</h3>
+  <h3>{{ _("Navbar") }}</h3>
 
   <div class="control-group">
     <div class="controls">
@@ -119,7 +114,27 @@
     </div>
   </div>
 
-  <h3>{{ _("Debug") }}</h3>
+  <h3>{{ _("Advanced") }}</h3>
+
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
+        {{ _("Index at zero") }}
+      </label>
+      <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.classicColorPicker" />
+        {{ _("Classic color picker") }}
+      </label>
+      <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
+    </div>
+  </div>
 
   <div class="control-group">
     <div class="controls">
