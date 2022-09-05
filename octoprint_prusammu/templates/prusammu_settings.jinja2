@@ -114,45 +114,63 @@
     </div>
   </div>
 
-  <h3>{{ _("Advanced") }}</h3>
-
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
-        {{ _("Index at zero") }}
-      </label>
-      <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+  <div>
+    <div>
+      <small>
+        <a href="#" class="muted" data-bind="
+          toggleContent: {
+            class: 'fa-caret-right fa-caret-down',
+            container: '#settings_plugin_prusammu .hide'
+          }
+        ">
+          <i class="fas fa-caret-right"></i> {{ _("Advanced options") }}
+        </a>
+      </small>
     </div>
-  </div>
 
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.classicColorPicker" />
-        {{ _("Classic color picker") }}
-      </label>
-      <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
-    </div>
-  </div>
-
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.debug" />
-        {{ _("Debug") }}
-      </label>
-      <span class="help-block">{{ _("Warning: Enabling debug will make Prusa MMU noisy in logs and devtools. May also slow down your print.") }}</span>
-    </div>
-  </div>
-
-  <div class="control-group">
-    <label class="control-label">{{ _("M109 Command") }}</label>
-    <div class="controls">
-      <div class="input-append">
-        <input type="text" class="input-small" class="input-block-level" data-bind="value: settings.plugins.prusammu.m109Command">
+    <div class="hide">
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
+            {{ _("Index at zero") }}
+          </label>
+          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+        </div>
       </div>
-      <span class="help-block">{{ _("You probably shouldn't change this. The M109 command is what tells the printer to let us know when we are at temp. This plugin does a prefix match on Gcode lines for \"M109\". If you are using a custom start GCode script and it calls M109 more than once try using \"M109 S[first_layer_temperature]\". Leave this blank and save to restore it to normal.") }}</span>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.classicColorPicker" />
+            {{ _("Classic color picker") }}
+          </label>
+          <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">{{ _("M109 Command") }}</label>
+        <div class="controls">
+          <div class="input-append">
+            <input type="text" class="input-xlarge" data-bind="value: settings.plugins.prusammu.m109Command">
+          </div>
+          <span class="help-block">
+            <span class="red-text">{{ _("You probably shouldn't change this.") }}</span>
+            {{ _("Defaults to <code>M109</code>. The M109 command is what tells the printer to wait until it hits temp. This plugin does a prefix match on Gcode lines for <code>M109</code> and appends the tool change below. If you are using a custom start GCode script and it calls M109 more than once try using <code>M109 S[first_layer_temperature]</code>.") }}</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.debug" />
+            {{ _("Debug") }}
+          </label>
+          <span class="help-block">{{ _("Warning: Enabling debug will make Prusa MMU noisy in logs and devtools. May also slow down your print.") }}</span>
+        </div>
+      </div>
+
     </div>
   </div>
 

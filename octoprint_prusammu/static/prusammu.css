@@ -6,3 +6,7 @@
 #settings_plugin_prusammu .colorPickButtonAlignments {
   margin: -5px 2px -5px 0;
 }
+
+#settings_plugin_prusammu .red-text {
+  color: red;
+}
