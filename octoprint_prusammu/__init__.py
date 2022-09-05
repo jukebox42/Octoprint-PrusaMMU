@@ -19,6 +19,7 @@ DEFAULT_TIMEOUT = 30
 PLUGIN_NAME = "prusammu"
 TAG_PREFIX = "prusaMMUPlugin:"
 TIMEOUT_TAG = "{}timeout".format(TAG_PREFIX)
+DEFAULT_M109 = "M109"
 FILAMENT_SOURCE_DEFAULT = [
   dict(name="Prusa MMU", id=PLUGIN_NAME),
   # dict(name="GCode", id="gcode"),
@@ -173,15 +174,16 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
+    m109Command = self.config[SettingsKeys.M109_COMMAND]
     # only react to tool change commands and ignore everything if they dont want the dialog
-    if not cmd.startswith("Tx") and not cmd.startswith("M109"):
+    if not cmd.startswith("Tx") and not cmd.startswith(m109Command):
       return # passthrough
 
     # This line right here is how we handle not prompting the user again if they timeout
     if TIMEOUT_TAG in tags:
       return # passthrough
 
-    if cmd.startswith("M109"):
+    if cmd.startswith(m109Command):
       self._log("gcode_queuing_hook_M109 command: {}".format(cmd), debug=True)
       if self.states[StateKeys.SELECTED_FILAMENT] is not None:
         tool_cmd = "T{}".format(self.states[StateKeys.SELECTED_FILAMENT])
@@ -343,6 +345,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       defaultFilament=-1,
       indexAtZero=False,
       classicColorPicker=False,
+      m109Command=DEFAULT_M109,
       filamentSource=PLUGIN_NAME,
       filamentSources=FILAMENT_SOURCE_DEFAULT,
       filament=[
@@ -373,6 +376,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     except:
       data[SettingsKeys.TIMEOUT] = DEFAULT_TIMEOUT
 
+    if SettingsKeys.M109_COMMAND not in data or data[SettingsKeys.M109_COMMAND] == "":
+      data[SettingsKeys.M109_COMMAND] = DEFAULT_M109
+
     # Always remember gcode filament, we dont care if it's stale it'll be refreshed on load
     # TODO: load this data on print load or something. i dunno good luck.
     if SettingsKeys.GCODE_FILAMENT not in data:
@@ -399,6 +405,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       SettingsKeys.DISPLAY_ACTIVE_FILAMENT])
     self.config[SettingsKeys.FILAMENT_SOURCE] = self._settings.get([SettingsKeys.FILAMENT_SOURCE])
     self.config[SettingsKeys.FILAMENT_SOURCES] = self._settings.get([SettingsKeys.FILAMENT_SOURCES])
+    self.config[SettingsKeys.M109_COMMAND] = self._settings.get([SettingsKeys.M109_COMMAND])
 
   # ======== SoftwareUpdatePlugin ========
   # https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html

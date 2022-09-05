@@ -13,3 +13,4 @@ class SettingsKeys():
   FILAMENT_SOURCES="filamentSources"
   FILAMENT="filament"
   GCODE_FILAMENT="gcodeFilament"
+  M109_COMMAND="m109Command"

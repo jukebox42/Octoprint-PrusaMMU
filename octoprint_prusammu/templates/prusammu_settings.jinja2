@@ -146,6 +146,16 @@
     </div>
   </div>
 
+  <div class="control-group">
+    <label class="control-label">{{ _("M109 Command") }}</label>
+    <div class="controls">
+      <div class="input-append">
+        <input type="text" class="input-small" class="input-block-level" data-bind="value: settings.plugins.prusammu.m109Command">
+      </div>
+      <span class="help-block">{{ _("You probably shouldn't change this. The M109 command is what tells the printer to let us know when we are at temp. This plugin does a prefix match on Gcode lines for \"M109\". If you are using a custom start GCode script and it calls M109 more than once try using \"M109 S[first_layer_temperature]\". Leave this blank and save to restore it to normal.") }}</span>
+    </div>
+  </div>
+
   <h3>MMU2 Help</h3>
 
   <ul>
