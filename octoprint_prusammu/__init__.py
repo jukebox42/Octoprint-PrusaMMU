@@ -376,7 +376,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     except:
       data[SettingsKeys.TIMEOUT] = DEFAULT_TIMEOUT
 
-    if SettingsKeys.M109_COMMAND not in data or data[SettingsKeys.M109_COMMAND] == "":
+    if SettingsKeys.M109_COMMAND not in data:
+      data[SettingsKeys.M109_COMMAND] = self._settings.get([SettingsKeys.M109_COMMAND])
+
+    if data[SettingsKeys.M109_COMMAND] == "":
       data[SettingsKeys.M109_COMMAND] = DEFAULT_M109
 
     # Always remember gcode filament, we dont care if it's stale it'll be refreshed on load
