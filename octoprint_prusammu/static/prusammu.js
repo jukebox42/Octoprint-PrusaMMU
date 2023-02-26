@@ -15,9 +15,16 @@ $(() => {
     SPOOL_MANAGER: "spoolManager",
     FILAMENT_MANAGER: "filamentManager",
   };
+  const MAX_FILAMENT_RETRY = 5;
 
   function PrusaMMU2ViewModel(parameters) {
     const self = this;
+    // Track if we've loaded the filament or not. Useful for spool managers that are slow to load.
+    self.filamentRetryCount = 0;
+    // Keep track so we can refresh if needed
+    self._toolId = 0;
+    self._previousToolId = 0;
+    self._toolState = "";
 
     self.globalSettings = parameters[0]; // settingsViewModel
     self.loginState = parameters[1]; // loginStateViewModel
@@ -174,10 +181,19 @@ $(() => {
     const updateNav = (state, tool, previousTool) => {
       const toolId = parseInt(tool, 10);
       const previousToolId = parseInt(previousTool, 10);
+      // Remember these, we may neec them again
+      self._toolId = toolId;
+      self._previousToolId = previousToolId;
+      self._toolState = state;
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
       const currentFilament = filamentList.find(f => f.index === toolId);
       const previousFilament = filamentList.find(f => f.index === previousToolId);
+
+      // If we didn't load the current filament then simply try again.
+      if (!currentFilament) {
+        self.delayedRefreshNav(filamentList);
+      }
 
       // global state icon & text
       self.navActionText(getNavActionText(state, toolId, currentFilament, !!previousFilament));
@@ -223,6 +239,30 @@ $(() => {
      self.openSettings = () => {
       self.globalSettings.show();
       self.globalSettings.selectTab("#settings_plugin_prusammu");
+    };
+
+    /**
+     * Delay a nav refresh and then try again. We're probably waiting for a spool manager. It will
+     * wait MAX_FILAMENT_RETRY times and do a slow backoff.
+     * 
+     * @param {[{id, name, type, color, enabled}, ...]} filamentList - The filament object
+     *                                                                 representing the tool
+     *                                                                 (see getFilamentList())
+     */
+    self.delayedRefreshNav = (filamentList) => {
+      if (
+        self.filamentRetryCount++ >= MAX_FILAMENT_RETRY ||
+        (filamentList.length >= 5 && !filamentList.includes(null))
+      ) {
+        return;
+      }
+      setTimeout(() => {
+        log(
+          "delayedRefreshNav", self.filamentRetryCount,
+          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId }
+        );
+        updateNav(self._toolState, self._toolId, self._previousToolId);
+      }, 1000 * self.filamentRetryCount);
     };
 
     /* =============================
@@ -399,7 +439,7 @@ $(() => {
           });
           log("getFilament filamentManager", filament, spools);
         } catch(e) {
-          console.error("Create a github issue with the following:", "prusammu Error: getFilament filamentManager failed.", e)
+          console.error("Create a github issue with the following:", "prusammu Error: getFilament filamentManager failed.", e);
         }
       } else if (self.filamentSources.spoolManager !== null && self.settings.filamentSource() === FILAMENT_SOURCE_NAMES.SPOOL_MANAGER) {
         filament = [];
@@ -421,7 +461,7 @@ $(() => {
           });
           log("getFilament SpoolManager", filament, spools);
         } catch(e) {
-          console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolManager failed.", e)
+          console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolManager failed.", e);
         }
       } else if (self.settings.filamentSource() === "gcode") {
         filament = self.settings.gcodeFilament().map(f => {
