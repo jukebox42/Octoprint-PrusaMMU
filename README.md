@@ -67,10 +67,6 @@ sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings ar
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
-1. When using SpoolManager, on a page refresh it's possible the proper filament name and color wont
-   be pulled. This does not impact the print. This happens because of a race condition, spoolManager
-   might not have loaded it's data before prusammu tries to pull it. When this happens `Filament #`
-   will be shown. Refreshing the page again usually fixes the issue.
 
 ## Developer Zone
 
@@ -190,6 +186,7 @@ to update the following areas:
 ### Debugging
 
 Enable debug logs via the settings menu, ensure logging is set to the debug level for prusammu.
+Note: This may slow down printing.
 
 Octoprint exposes the viewmodel via:
 ```javascript
@@ -208,7 +205,6 @@ $ bash build.sh 2022.7.4
 
 Settings:
 - Version: 2022.7.4
-- Debug n
 
 Writing plugin version... done
 Disabling debug... done
@@ -224,25 +220,21 @@ Done.
 Versioning is done by date so it's clear when the build was installed and made available. Year is
 four characters long. Month is one or two characters long depending and does not have a leading zero
 for sub ten. Day follows the same rules as month. Beta versions are denoted by a "b" directly
-following the day and then a number describing what beta version it is. Sequentially `2022.1.1b1`
+following the day and then a number describing what beta version it is. Sequentially `2022.1.1a0`
 comes before `2022.1.1`.
 
 Format:
 ```
 YYYY.M.D
-YYYY.M.Db#
+YYYY.M.Da#
 ```
 
 Examples:
 ```
 2022.10.4
 2022.1.20
-2022.1.20b2
+2022.1.20a0
 ```
-
-Note: Beta versions will have debug enabled. When debug is on the plugin will be noisier. It will
-console.log a lot of interactions and the nav bar item will link to the plugin manifest instead of
-the plugin settings.
 
 ### Contribution
 
