@@ -6,4 +6,6 @@
 # works as expected. Requirements can be found in setup.py.
 ###
 
-.
+setuptools~=65.5.1
+OctoPrint~=1.8.7
+Flask==2.3.2
