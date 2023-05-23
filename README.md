@@ -18,7 +18,7 @@ or manually by selecting the latest zip:
 - Set a timeout to auto-select an extruder
 - Enable/disable extruders, name them, and give them a color
 - Show/hide navbar item (and simplify the display)
-- Supports retriving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
+- Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
   and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
 
 ## Screenshots
@@ -37,19 +37,19 @@ print to provide the dialog.
 The command interactions are as follows:
 - Before sent: (gcode_queuing_hook)
   - `Tx`: When the GCODE would send a `Tx` (tool change) it first triggers the modal and then does
-    not send the Tx command. Instead it sends a pause event to the printer. This results in Prusa
+    not send the Tx command. Instead, it sends a pause event to the printer. This results in Prusa
     not prompting for a tool change. If the timeout time is reached (`_timeout_prompt`) then the
     plugin resends the `Tx` command to allow Prusa to prompt the user.
   - `M109`: When the GCODE would send an `M109` (Wait for Hotend Temperature) and the user
     has selected a filament we send both the `M109` and `T#` (like `T2`), otherwise we just send the
     `M109`.
 - After sent: (gcode_sent_hook)
-  - When the plugin notices a `T#` command we set the tool internally so it can be used to
-    display. This is to support multi-color printing. This trigger is also used to show unloading.
+  - When the plugin notices a `T#` command we set the tool internally, so it can be used to
+    display. This is to support multicolor printing. This trigger is also used to show unloading.
 
 We listen to printer responses and do some substring matching. This is done to identify filament
-events and printer notifications so we can update the navbar: (gcode_received_hook)
-  - `paused for user` - Used to show that the printer needs attention (eithe error or waiting for
+events and printer notifications, so we can update the navbar: (gcode_received_hook)
+  - `paused for user` - Used to show that the printer needs attention (either error or waiting for
     tool selection at printer).
   - `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
   - `MMU - ENABLED` / `MMU starts responding` - Used to show printer is "OK".
@@ -63,7 +63,7 @@ sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings ar
 ## Known Bugs
 
 1. In rare instances, the "waiting for user input" event can come in directly after a tool change is
-   sent, resulting in the navbar never updating. This will not impact printing but you will see
+   sent, resulting in the navbar never updating. This will not impact printing, but you will see
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
@@ -82,7 +82,7 @@ Here is a list of states used internally. These will be the `state` value in eve
 - `LOADED` - Filament (tool) is loaded.
 - `UNLOADING` - Filament (tool) is unloading.
 - `LOADING` - Filament (tool) is loading OR unloading has concluded.
-- `PAUSED_USER` - Printer is awaiting user input OR filament dialog is precent.
+- `PAUSED_USER` - Printer is awaiting user input OR filament dialog is present.
 - `ATTENTION` - Printer needs user attention, could be MMU error or printer prompt (like new
   software version available).
 
@@ -107,7 +107,7 @@ Payload:
 
 MMU data _may_ change. This is fired by a number of things internal to the plugin, what's important
 is that this does not indicate a change happened, just that one _may_ happen. It's strongly
-recomended to listen on `plugin_prusammu_mmu_changed` instead unless you need to react before a
+recommended to listen on `plugin_prusammu_mmu_changed` instead unless you need to react before a
 change occurs. The plugin internally dedupes these events by comparing the new with the old and only
 triggering when there's a change. 
 
@@ -155,11 +155,11 @@ Returns:
 ```
 
 Filament object properties:
-- `id` - The ID of the filament (the index +1 so it's readable and because I wanted to make it hard
+- `id` - The ID of the filament (the index +1, so it's readable and because I wanted to make it hard
   on myself)
 - `index` - The real index of the filament (tool) as the printer would see it.
 - `name` - The name the user gave the filament.
-- `type` - The type of filament (i.e PLA/PETG). This is blank unless the source is filamentManager
+- `type` - The type of filament (i.e. PLA/PETG). This is blank unless the source is filamentManager
   or spoolManager.
 - `color` - The color of the filament.
 - `enabled` Whether the filament is enabled in prusammu (when using prusammu as the source).
@@ -217,8 +217,8 @@ Done.
 
 ### Versioning
 
-Versioning is done by date so it's clear when the build was installed and made available. Year is
-four characters long. Month is one or two characters long depending and does not have a leading zero
+Versioning is done by date, so it's clear when the build was installed and made available. Year is
+four characters long. Month is one or two characters long and does not have a leading zero
 for sub ten. Day follows the same rules as month. Beta versions are denoted by a "b" directly
 following the day and then a number describing what beta version it is. Sequentially `2022.1.1a0`
 comes before `2022.1.1`.
@@ -239,9 +239,9 @@ Examples:
 ### Contribution
 
 I built this plugin for fun, and because I wanted better MMU support. If you catch a bug or think it
-needs some work feel free to open a PR or cut an issue and I'll do my best to review it.
+needs some work feel free to open a PR or cut an issue, and I'll do my best to review it.
 
-If you can figure out how to get the MMU state data (when it's errored) please let me know and I'll
+If you can figure out how to get the MMU state data (when it's errored) please let me know, and I'll
 add it. I tried to find it but was unsuccessful.
 
 ## Useful Link
