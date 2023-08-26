@@ -2,20 +2,39 @@
 
 # bash build.sh YYYY.M.D
 
+FILE="alpha.txt";
+
 echo "=== Building PrusaMMU ===";
 echo "";
 
-# Take inputs
+# Set a base version if no version is provided
 dt=`date +"%y.%-m.%-d"alpha`;
+
+# Handle alpha versioning so it increments
+alphaV=0;
+if [ -z "$1" ]; then
+  if [ -f "$FILE" ]; then
+    alphaV=$(cat $FILE);
+    alphaV=$(($alphaV + 1))
+    echo "$alphaV" > "$FILE";
+  else
+    echo $(($alphaV)) > "$FILE";
+  fi
+  dt="$dt$alphaV";
+else
+  rm -f "$FILE";
+fi
+
+# Take inputs
 echo "Settings:";
 version="${1:-$dt}";
-debug="${2:-y}";
 echo "- Version: $version";
-echo ""
+echo "";
+
 
 # Delete and recreate the build directory
 rm -rf Octoprint-PrusaMmu
-rm -rf Octoprint-PrusaMmu.zip
+rm -f Octoprint-PrusaMmu.zip
 mkdir Octoprint-PrusaMmu
 
 # Copy files ans folders we need in the build

@@ -9,7 +9,7 @@ import octoprint.plugin
 from octoprint.server import user_permission
 from octoprint.events import Events
 
-from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, DEFAULT_MMU_STATE
+from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU2Commands, MMU3Commands, MMU3Codes, DEFAULT_MMU_STATE
 from octoprint_prusammu.common.PluginEventKeys import PluginEventKeys
 from octoprint_prusammu.common.SettingsKeys import SettingsKeys
 from octoprint_prusammu.common.StateKeys import StateKeys, DEFAULT_STATE
@@ -202,25 +202,68 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     return # passthrough
 
-  # Listen for MMU2 events and update the nav to reflect it
+  # Listen for MMU events and update the nav to reflect it
   def gcode_received_hook(self, comm, line, *args, **kwargs):
-    if "paused for user" in line:
+    # MMU2 3.0.0
+    # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_progress_converter.cpp#L8
+    # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_protocol_logic.cpp
+    if self.mmu[MmuKeys.STATE] != MmuStates.ATTENTION and MMU3Commands.ERROR in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
+      return line
+    elif self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION and MMU3Commands.OK in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+      return line
+    elif MMU3Commands.INIT in line or MMU3Commands.BUTTON in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+      return line
+    elif self.mmu[MmuKeys.STATE] != MmuStates.UNLOADING and search(MMU3Codes.UNLOAD_START, line):
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.UNLOADING))
+      return line
+    elif (
+      self.mmu[MmuKeys.STATE] == MmuStates.UNLOADING and
+      search(MMU3Codes.UNLOAD_FINISHED, line) and
+      self._printer.get_state_id() != "PRINTING"
+    ):
+      # Print is done so go back to Ready
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+      return line
+    elif (
+      self.mmu[MmuKeys.STATE] != MmuStates.LOADING and
+      (MMU3Commands.FEED_FINDA in line or search(MMU3Codes.LOAD_PROCESSING, line))
+    ):
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADING))
+      return line
+    elif (
+      (self.mmu[MmuKeys.STATE] == MmuStates.LOADING and MMU3Commands.DISENGAGE_IDLER in line) or
+      search(MMU3Codes.LOAD_FINISHED, line) or
+      (self.mmu[MmuKeys.STATE] == MmuStates.LOADING and MMU3Commands.RESET_RETRY in line) or
+      (self.mmu[MmuKeys.STATE] == MmuStates.LOADING and search(MMU3Codes.TOOL_FINISHED, line))
+    ):
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADED))
+      return line
+
+    # MMU2 1.0.0
+    elif MMU2Commands.PAUSED_USER in line:
       # The printer will spam pause messages directly after an attention so ignore them
       if self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION:
         return line
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.PAUSED_USER))
-    elif "MMU => 'start'" in line:
+      return line
+    elif MMU2Commands.START in line:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.STARTING))
-    elif "MMU not responding" in line:
+      return line
+    elif MMU2Commands.NOT_RESPONDING in line:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
-    elif "MMU - ENABLED" in line or "MMU starts responding" in line:
+      return line
+    elif MMU2Commands.ENABLED in line or MMU2Commands.STARTS_RESPONDING in line:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
-    elif "MMU can_load" in line or "Unloading finished" in line:
+      return line
+    elif MMU2Commands.LOADING in line or MMU2Commands.UNLOADING_DONE in line:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADING))
-    # elif "mmu_get_response - begin move: unload" in line:
-    #   self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.UNLOADING))
-    elif "OO succeeded" in line:
+      return line
+    elif MMU2Commands.LOADED in line:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADED))
+      return line
 
     return line
 
@@ -262,6 +305,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== EventHandlerPlugin ========
 
   def _fire_event(self, key, payload=None):
+    # TODO: Because of how noisy the new MMU firmware is we should set state syncronusly. Good luck with on_event.
     self._event_bus.fire(key, payload=payload)
 
 
