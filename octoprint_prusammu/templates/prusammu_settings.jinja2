@@ -1,4 +1,7 @@
 <h2>{{ _("Prusa MMU") }}</h2>
+<div class="alert alert-block">
+  <p><strong>Warning:</strong><br /> {{ _("First version with MMU2 3.0.0 support. If you find a bug please let me know.") }}</p>
+</div>
 <form class="form-horizontal">
   <h3>{{ _("Filament") }}</h3>
 
@@ -114,43 +117,67 @@
     </div>
   </div>
 
-  <h3>{{ _("Advanced") }}</h3>
+  <div>
+    <div>
+      <small>
+        <a href="#" class="muted" data-bind="
+          toggleContent: {
+            class: 'fa-caret-right fa-caret-down',
+            container: '#settings_plugin_prusammu .hide'
+          }
+        ">
+          <i class="fas fa-caret-right"></i> {{ _("Advanced options") }}
+        </a>
+      </small>
+    </div>
+    <div class="hide">
+      <h3>{{ _("Advanced") }}</h3>
 
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
-        {{ _("Index at zero") }}
-      </label>
-      <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
+            {{ _("Index at zero") }}
+          </label>
+          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.classicColorPicker" />
+            {{ _("Classic color picker") }}
+          </label>
+          <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.debug" />
+            {{ _("Debug") }}
+          </label>
+          <span class="help-block">{{ _("Warning: Enabling debug will make Prusa MMU noisy in logs and devtools. May also slow down your print.") }}</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.classicColorPicker" />
-        {{ _("Classic color picker") }}
-      </label>
-      <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
-    </div>
-  </div>
-
-  <div class="control-group">
-    <div class="controls">
-      <label class="checkbox">
-        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.debug" />
-        {{ _("Debug") }}
-      </label>
-      <span class="help-block">{{ _("Warning: Enabling debug will make Prusa MMU noisy in logs and devtools. May also slow down your print.") }}</span>
-    </div>
-  </div>
-
-  <h3>MMU2 Help</h3>
+  <h3>{{ _("Info") }}</h3>
 
   <ul>
-    <li><a href="https://help.prusa3d.com/guide/service-menu-individual-filament-calibration_86376" target="_blank">{{ _("MMU2 Filament Calibration")}}</a></li>
-    <li><a href="https://help.prusa3d.com/guide/filament-jam-mmu2s_85936" target="_blank">{{ _("MMU2 Filament Jam")}}</a></li>
-    <li><a href="https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light" target="_blank">{{ _("MMU2 Red Light Troubleshooting") }}</a></li>
+    <li>{{ _("Supports MMU2 Firmware 3.X.X") }}</li>
+    <li><a href="https://github.com/jukebox42/Octoprint-PrusaMMU#gcode-interactions" target="_blank">{{ _("Documentation") }}</a></li>
+    <li><a href="https://github.com/jukebox42/Octoprint-PrusaMMU/releases" target="_blank">{{ _("Release notes") }}</a></li>
+    <li>
+      <strong>{{ _("MMU2 Troubleshooting") }}</strong>
+      <ul>
+        <li><a href="https://help.prusa3d.com/guide/service-menu-individual-filament-calibration_86376" target="_blank">{{ _("MMU2 Filament Calibration")}}</a></li>
+        <li><a href="https://help.prusa3d.com/guide/filament-jam-mmu2s_85936" target="_blank">{{ _("MMU2 Filament Jam")}}</a></li>
+        <li><a href="https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light" target="_blank">{{ _("MMU2 Red Light Troubleshooting") }}</a></li>
+      </ul>
+    </li>
   </ul>
 </form>

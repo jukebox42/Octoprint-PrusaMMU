@@ -48,13 +48,26 @@ The command interactions are as follows:
     display. This is to support multi-color printing. This trigger is also used to show unloading.
 
 We listen to printer responses and do some substring matching. This is done to identify filament
-events and printer notifications so we can update the navbar: (gcode_received_hook)
+events and printer notifications so we can update the navbar (gcode_received_hook).
+
+MMU2 1.X.X
   - `paused for user` - Used to show that the printer needs attention (eithe error or waiting for
     tool selection at printer).
   - `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
   - `MMU - ENABLED` / `MMU starts responding` - Used to show printer is "OK".
   - `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
   - `OO succeeded` - Used to show what filament is loaded.
+
+MMU2/3 3.X.X
+  - `Cap:PRUSA_MMU2:1` - Used to show the printer is "OK" (MMU found)
+  - `paused for user` - Used to show that the printer needs attention.
+  - `MMU2:Command Error` - Used to show the printer triggered an error.
+  - `MMU2:OK` - Used to show the printer is "OK".
+  - `/MMU[23]:<U[0-4] A/` - Used to show the filament is unloading.
+  - `/MMU[23]:<U[0-4] F/` - Used to show the filament unloaded.
+  - `FEED_FINDA` / `/MMU[23]:<:L[0-4] P/` - Used to show the filament is loading.
+  - `MMU2:Disengaging idler` - Used to show the filament loaded (on single filament prints)
+  - `ResetRetryAttempts` / `/MMU[23]:<T[0-4] F0/` - Used to show the filament loaded (on multi-color prints)
 
 For all instances of where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
 look at function `_timeout_prompt` where we handle unpausing the printer after the timer and either
@@ -67,6 +80,7 @@ sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings ar
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
+1. The 3.0.0 software spams commands a lot, you may see unload directly before a load for example.
 
 ## Developer Zone
 
