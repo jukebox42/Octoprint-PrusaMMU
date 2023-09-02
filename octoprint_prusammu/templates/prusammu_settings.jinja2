@@ -1,6 +1,10 @@
 <h2>{{ _("Prusa MMU") }}</h2>
-<div class="alert alert-block">
-  <p><strong>Warning:</strong><br /> {{ _("First version with MMU2 3.0.0 support. If you find a bug please let me know.") }}</p>
+<div id="prusammu_error_zone" class="hide">
+  <div class="alert alert-block">
+    <p><strong><span id="prusammu_error_title">TITLE</span> (<span id="prusammu_error_code">CODE</span>)</strong></p>
+    <p id="prusammu_error_text"></p>
+    <p><a id="prusammu_error_url" href="#" target="_blank">URL</a></p>
+  </div>
 </div>
 <form class="form-horizontal">
   <h3>{{ _("Filament") }}</h3>
