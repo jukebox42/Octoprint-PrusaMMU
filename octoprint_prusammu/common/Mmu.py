@@ -15,13 +15,18 @@ class MmuStates():
 
 class MmuKeys():
   STATE="state"
+  LIVE_STATE="liveState"
   TOOL="tool"
   PREV_TOOL="previousTool"
+  ERROR="error"
 
 DEFAULT_MMU_STATE = dict(
+  # liveState represents the state we have yet to advertise. Used to avoid event spamming with 3.0.0
+  liveState=MmuStates.NOT_FOUND,
   state=MmuStates.NOT_FOUND,
   tool="",
   previousTool="",
+  error="",
 )
 
 class MMU2Commands():
@@ -42,25 +47,28 @@ class MMU2Commands():
 # Using this we can determine:
 # The MMU (F)inished (L)oading Tool 0, and it only took 0(one) tries.
 class MMU3Codes():
+  INIT="MMU2:<X[0-4] F"
+  VERSION="MMU2<S3 A"
+  # Error
+  ERROR="MMU2:<(?:[^E]*) (E[^*]*)"
   # Tool
   # TODO: What's the different between Tool Finished and Load Finished? I don't see Load Finished in multi-color prints.
-  TOOL_START="MMU[23]:<T[0-4] A"
-  TOOL_PROCESSING="MMU[23]:<T[0-4] P"
-  TOOL_FINISHED="MMU[23]:<T[0-4] F0"
+  TOOL_START="MMU2:<T[0-4] A"
+  TOOL_PROCESSING="MMU2:<T[0-4] P"
+  TOOL_FINISHED="MMU2:<T[0-4] F"
   # Load
-  LOAD_START="MMU[23]:<L[0-4] A"
-  LOAD_PROCESSING="MMU[23]:<:L[0-4] P"
-  LOAD_FINISHED="MMU[23]:<L[0-4] F"
+  LOAD_START="MMU2:<L[0-4] A"
+  LOAD_PROCESSING="MMU2:<:L[0-4] P"
+  LOAD_FINISHED="MMU2:<L[0-4] F"
   # Unload
-  UNLOAD_START="MMU[23]:<U[0-4] A"
-  UNLOAD_PROCESSING="MMU[23]:<U[0-4] P"
-  UNLOAD_FINISHED="MMU[23]:<U[0-4] F"
+  UNLOAD_START="MMU2:<U[0-4] A"
+  UNLOAD_PROCESSING="MMU2:<U[0-4] P"
+  UNLOAD_FINISHED="MMU2:<U[0-4] F"
 
 class MMU3Commands():
   INIT="Cap:PRUSA_MMU2:1"
   ERROR="MMU2:Command Error"
   BUTTON="MMU2:Button"
-  READ="MMU2:<"
   # Not technically an MMU command but tells us the last action was successful probably.
   RESET_RETRY="ResetRetryAttempts"
   # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_progress_converter.cpp#L8

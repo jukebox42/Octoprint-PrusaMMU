@@ -1,0 +1,57 @@
+========================
+===== MMU 2: 1.0.0 =====
+========================
+
+# Starting
+!!DEBUG:send MMU => 'start'
+
+# Enabled (ready)
+!!DEBUG:send MMU - ENABLED
+!!DEBUG:send MMU starts responding
+
+# Paused
+!!DEBUG:send paused for user
+
+# Not responding
+!!DEBUG:send MMU not responding
+
+# Loading
+!!DEBUG:send MMU can_load:
+!!DEBUG:send Unloading finished 2
+
+# Loaded
+!!DEBUG:send OOOOOOOOOOOOOOOOOOOOOOOOOOO succeeded.
+
+
+========================
+===== MMU 2: 3.0.0 =====
+========================
+Note: Make sure you don't send the *XX at the end of lines. Virtual printer loses it's mind if you do.
+
+# Starting / init (must be in not found mode)
+!!DEBUG:send Recv: Cap:PRUSA_MMU2:1
+!!DEBUG:send MMU2:<X0 F0
+
+# Error
+!!DEBUG:send MMU2:<L0 E800d
+
+# Button (must be in error mode)
+!!DEBUG:send MMU2:Button
+
+# OK (must be in error mode)
+!!DEBUG:send MMU2:OK
+
+# Unload Start (must not be in unloading)
+!!DEBUG:send MMU2:<U1 A0
+
+# Unload Finished (must be in unloading)
+!!DEBUG:send MMU2:<U1 F0 
+
+# Load Start (must not be in loading)
+!!DEBUG:send MMU2:Feeding to FINDA
+!!DEBUG:send MMU2:<:L2 P0
+
+# Load Finished (must be in loading unless using the last one)
+!!DEBUG:send MMU2:Disengaging idler
+!!DEBUG:send ResetRetryAttempts
+!!DEBUG:send MMU2:<T2 F0

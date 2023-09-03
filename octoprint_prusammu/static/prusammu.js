@@ -25,6 +25,7 @@ $(() => {
     self._toolId = 0;
     self._previousToolId = 0;
     self._toolState = "";
+    self._error = "";
 
     self.globalSettings = parameters[0]; // settingsViewModel
     self.loginState = parameters[1]; // loginStateViewModel
@@ -178,13 +179,15 @@ $(() => {
      * @param {string} tool - The tool id. It _might_ have a T so we strip it here
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
      */
-    const updateNav = (state, tool, previousTool) => {
+    const updateNav = (state, tool, previousTool, error) => {
       const toolId = parseInt(tool, 10);
       const previousToolId = parseInt(previousTool, 10);
+      let errorDetails = false;
       // Remember these, we may neec them again
       self._toolId = toolId;
       self._previousToolId = previousToolId;
       self._toolState = state;
+      self._error = error;
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
       const currentFilament = filamentList.find(f => f.index === toolId);
@@ -198,6 +201,12 @@ $(() => {
       // global state icon & text
       self.navActionText(getNavActionText(state, toolId, currentFilament, !!previousFilament));
       self.navActionIcon(getNavActionIcon(state));
+
+      // If error was present in the log we're dealing with an MMU running 3.0.0 so let's show more info.
+      if (error) {
+        errorDetails = processMmuError(error);
+        self.navActionText(errorDetails.title);
+      }
 
       // Filament specific icons & text
       if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED) {
@@ -223,12 +232,13 @@ $(() => {
       log(
         "updateNav",
         { 
-          "params": { "tool": toolId, "previousTool": previousToolId, "state": state },
+          "params": { "tool": toolId, "previousTool": previousToolId, "state": state, "error": error },
           "currentFilament": currentFilament,
           "previousFilament": previousFilament,
           "action": { "text": self.navActionText(), "icon": self.navActionIcon() },
           "tool": { "text": self.navToolText(), "icon": self.navActionIcon(), "color": self.navToolColor() },
           "prevTool": { "text": self.navPreviousToolText(), "color": self.navPreviousToolColor() },
+          "error": self._error,
         }
       );
     };
@@ -259,9 +269,9 @@ $(() => {
       setTimeout(() => {
         log(
           "delayedRefreshNav", self.filamentRetryCount,
-          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId }
+          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId, "error": self._error }
         );
-        updateNav(self._toolState, self._toolId, self._previousToolId);
+        updateNav(self._toolState, self._toolId, self._previousToolId, self._error);
       }, 1000 * self.filamentRetryCount);
     };
 
@@ -355,7 +365,7 @@ $(() => {
           closeModal();
           break;
         case "nav":
-         updateNav(data.state, data.tool, data.previousTool);
+         updateNav(data.state, data.tool, data.previousTool, data.error);
           break;
         // case "debug": these just exist to get logged and we do that above.
       }
@@ -383,6 +393,7 @@ $(() => {
      */
     self.onSettingsShown = () => {
       bindPickers();
+      showError();
     };
 
     /**
@@ -563,9 +574,43 @@ $(() => {
     };
 
     /**
+     * Used when settings are shown, if the MMU is in an error state we impose an alert box in settings with more info.
+     */
+    const showError = () => {
+      const idPrefix = "#settings_plugin_prusammu #prusammu_error_";
+      if (!self._error || self._toolState !== STATES.ATTENTION) {
+        $(`${idPrefix}zone`).addClass("hide");
+        return;
+      }
+
+      const error = processMmuError(self._error);
+      $(`${idPrefix}title`).text(error.title);
+      $(`${idPrefix}code`).text(error.code);
+      $(`${idPrefix}text`).text(error.text);
+      $(`${idPrefix}url`).text(error.url).attr("href", error.url);
+      $(`${idPrefix}zone`).removeClass("hide");
+    };
+
+    /**
+     * Given the error code it generates an error object with more information.
+     * 
+     * @param {string} code - The string identifier for the error. Will be "E" followed by a 4 digit hex code.
+     * @returns {code, title, text, url}
+     */
+    const processMmuError = (code) => {
+      const error = getMmuError(code);
+      return {
+        code: error.code,
+        title: error.title,
+        text: error.text,
+        url: `https://prusa.io/${error.code}`,
+      };
+    };
+
+    /**
      * Simple function to log out debug messages if debug is on. Use like you would console.log().
      * 
-     * @param {...any} args - arguments to pass directly to console.warn.
+     * @param {...any} args - arguments to pass directly to console.log.
      */
     const log = (...args) => {
       if (!self.settings.debug()) {

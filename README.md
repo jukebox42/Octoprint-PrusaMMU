@@ -59,13 +59,13 @@ events and printer notifications, so we can update the navbar: (gcode_received_h
 MMU2/3 3.X.X
   - `Cap:PRUSA_MMU2:1` - Used to show the printer is "OK" (MMU found)
   - `paused for user` - Used to show that the printer needs attention.
-  - `MMU2:Command Error` - Used to show the printer triggered an error.
-  - `MMU2:OK` - Used to show the printer is "OK".
-  - `/MMU[23]:<U[0-4] A/` - Used to show the filament is unloading.
-  - `/MMU[23]:<U[0-4] F/` - Used to show the filament unloaded.
-  - `FEED_FINDA` / `/MMU[23]:<:L[0-4] P/` - Used to show the filament is loading.
+  - `MMU2:<(?:[^E]*) (E[^*]*)` - Used to show the printer triggered an error. (these show up like `MMU2:<T0 E800d`)
+  - `MMU2<S3 A` / `MMU2:<X[0-4] F` - Used to show the printer is "OK".
+  - `/MMU2:<U[0-4] A/` - Used to show the filament is unloading.
+  - `/MMU2:<U[0-4] F/` - Used to show the filament unloaded.
+  - `FEED_FINDA` / `/MMU2:<:L[0-4] P/` - Used to show the filament is loading.
   - `MMU2:Disengaging idler` - Used to show the filament loaded (on single filament prints)
-  - `ResetRetryAttempts` / `/MMU[23]:<T[0-4] F0/` - Used to show the filament loaded (on multi-color prints)
+  - `ResetRetryAttempts` / `/MMU2:<T[0-4] F/` - Used to show the filament loaded (on multi-color prints)
 
 For all instances of where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
 look at function `_timeout_prompt` where we handle unpausing the printer after the timer and either
@@ -78,7 +78,6 @@ sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings ar
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
-1. The 3.0.0 software spams commands a lot, you may see unload directly before a load for example.
 
 ## Developer Zone
 
@@ -98,6 +97,18 @@ Here is a list of states used internally. These will be the `state` value in eve
 - `ATTENTION` - Printer needs user attention, could be MMU error or printer prompt (like new
   software version available).
 
+### Errors
+
+New when using MMU 3.0.0!
+
+When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `X` in this
+case could be a series of letters depending on the type of message coming back. The `E` represents
+there being an Error and the `800d` is the hex code of the error.
+
+We map those hex codes in `static/mmuErrors.js` to get the details about the errors. Mapping was
+done by hand (i'll automate it eventually). To get the url of the error you just need to append the
+`code` value from the `MMU2MmuErrorStrings` map to `https://prusa.io/` like `https://prusa.io/04306`.
+
 ### Events
 
 A number of events are fired you can listen to.
@@ -112,6 +123,7 @@ Payload:
   state: string
   tool: int
   previousTool: int
+  error: string
 }
 ```
 
@@ -129,6 +141,7 @@ Payload:
   state: string
   tool: int
   previousTool: int
+  error: string
 }
 ```
 
