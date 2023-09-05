@@ -59,12 +59,20 @@ const MMU2MmuErrorStrings = {
     id:"FSENSOR_FILAMENT_STUCK",
   },
 
-  /*X04105: {
+  E8047: {
     code:"04105",
     title:"PULLEY CANNOT MOVE",
     text:"Pulley motor stalled. Ensure the pulley can move and check the wiring.",
     id:"PULLEY_CANNOT_MOVE",
-  },*/
+  },
+
+  // This second E8xxx code causes the same error to be output
+  E804b: {
+    code:"04105",
+    title:"PULLEY CANNOT MOVE",
+    text:"Pulley motor stalled. Ensure the pulley can move and check the wiring.",
+    id:"PULLEY_CANNOT_MOVE",
+  },
 
   E8009: {
     code:"04106",
@@ -80,40 +88,40 @@ const MMU2MmuErrorStrings = {
     id:"INSPECT_FINDA",
   },
 
-  /*E802a: {
+  E802a: {
     code:"04108",
     title:"LOAD TO EXTR. FAILED",
     text:"Loading to extruder failed. Inspect the filament tip shape. Refine the sensor calibration, if needed.",
     id:"LOAD_TO_EXTRUDER_FAILED",
-  },*/
+  },
 
-  /*X04115: {
+  E8087: {
     code:"04115",
     title:"SELECTOR CANNOT HOME",
     text:"The Selector cannot home properly. Check for anything blocking its movement.",
     id:"SELECTOR_CANNOT_HOME",
-  },*/
+  },
 
-  /*X04116: {
+  E808b: {
     code:"04116",
     title:"SELECTOR CANNOT MOVE",
     text:"The Selector cannot move. Check for anything blocking its movement. Check if the wiring is correct.",
     id:"SELECTOR_CANNOT_MOVE",
-  },*/
+  },
 
-  /*X04125: {
+  E8107: {
     code:"04125",
     title:"IDLER CANNOT HOME",
     text:"The Idler cannot home properly. Check for anything blocking its movement.",
     id:"IDLER_CANNOT_HOME",
-  },*/
+  },
 
-  /*X04126: {
+  E810b: {
     code:"04126",
     title:"IDLER CANNOT MOVE",
     text:"The Idler cannot move properly. Check for anything blocking its movement. Check if the wiring is correct.",
     id:"IDLER_CANNOT_MOVE",
-  },*/
+  },
 
   // TEMPERATURE    xx2xx   // Temperature measurement
 
@@ -361,6 +369,15 @@ const MMU2MmuErrorStrings = {
     title:"FILAMENT EJECTED",
     text:"Remove the ejected filament from the front of the MMU.",
     id:"FILAMENT_EJECTED",
+  },
+
+  // Additional code reported in mmu firmware, but not listed in error-codes.yaml yet. Might need updated if it gets added. Values taken from https://github.com/prusa3d/Prusa-Firmware/blob/MK3/Firmware/mmu2/errors_list.h
+
+  E8029: {
+    code:"04508",
+    title:"FILAMENT CHANGE",
+    text:"M600 Filament Change. Load a new filament or eject the old one.",
+    id:"FILAMENT_CHANGE",
   },
 
   UNKNOWN: {
