@@ -208,8 +208,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def gcode_received_hook(self, comm, line, *args, **kwargs):
     # MMU2 1.0.0
     if MMU2Commands.PAUSED_USER in line:
-      # The printer will spam pause messages directly after an attention so ignore them
-      if (self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION):
+      # The printer will spam pause messages, so ignore them if we're already paused
+      if self.mmu[MmuKeys.STATE] == MmuStates.PAUSED_USER:
+        return line
+      # The printer will send pause messages directly after an attention, and attention is more important, so ignore them
+      elif self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION:
         return line
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.PAUSED_USER))
       return line
@@ -349,28 +352,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== EventHandlerPlugin ========
 
   def _fire_event(self, key, payload=None):
-    if payload is not None and key == PluginEventKeys.MMU_CHANGE:
-      # Fix payload and do General deduplication here, it's not needed in on_event anymore
-      if MmuKeys.STATE not in payload:
-        payload[MmuKeys.STATE] = self.mmu[MmuKeys.STATE]
-      if MmuKeys.TOOL not in payload:
-        payload[MmuKeys.TOOL] = self.mmu[MmuKeys.TOOL]
-      if MmuKeys.PREV_TOOL not in payload:
-        payload[MmuKeys.PREV_TOOL] = self.mmu[MmuKeys.PREV_TOOL]
-      if MmuKeys.RESPONSE not in payload:
-        payload[MmuKeys.RESPONSE] = self.mmu[MmuKeys.RESPONSE]
-      if MmuKeys.RESPONSE_DATA not in payload:
-        payload[MmuKeys.RESPONSE_DATA] = self.mmu[MmuKeys.RESPONSE_DATA]
-      if (
-        self.mmu[MmuKeys.STATE] == payload[MmuKeys.STATE] and
-        self.mmu[MmuKeys.TOOL] == payload[MmuKeys.TOOL] and
-        self.mmu[MmuKeys.PREV_TOOL] == payload[MmuKeys.PREV_TOOL] and
-        self.mmu[MmuKeys.RESPONSE] == payload[MmuKeys.RESPONSE] and
-        self.mmu[MmuKeys.RESPONSE_DATA] == payload[MmuKeys.RESPONSE_DATA]
-      ):
-        return
-      self._event_bus.fire(key, payload=payload)
-    else:
+      # Steps are taken in gcode_received_hook to reduce the spamminess of events. Proper deduplication happens in on_event
+      #self._log("_fire_event {} with".format(key), obj=payload, debug=True)
       self._event_bus.fire(key, payload=payload)
 
   def register_custom_events(*args, **kwargs):
@@ -390,6 +373,26 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # Fired any time we detect a command that would update something about the MMU
     if event == PluginEventKeys.MMU_CHANGE:
       self._log("on_event {} with".format(event), obj=payload, debug=True)
+      # Fix payload to add missing values
+      if MmuKeys.STATE not in payload:
+        payload[MmuKeys.STATE] = self.mmu[MmuKeys.STATE]
+      if MmuKeys.TOOL not in payload:
+        payload[MmuKeys.TOOL] = self.mmu[MmuKeys.TOOL]
+      if MmuKeys.PREV_TOOL not in payload:
+        payload[MmuKeys.PREV_TOOL] = self.mmu[MmuKeys.PREV_TOOL]
+      if MmuKeys.RESPONSE not in payload:
+        payload[MmuKeys.RESPONSE] = self.mmu[MmuKeys.RESPONSE]
+      if MmuKeys.RESPONSE_DATA not in payload:
+        payload[MmuKeys.RESPONSE_DATA] = self.mmu[MmuKeys.RESPONSE_DATA]
+      # failsafe so we dont constantly spam state changes
+      if (
+        self.mmu[MmuKeys.STATE] == payload[MmuKeys.STATE] and
+        self.mmu[MmuKeys.TOOL] == payload[MmuKeys.TOOL] and
+        self.mmu[MmuKeys.PREV_TOOL] == payload[MmuKeys.PREV_TOOL] and
+        self.mmu[MmuKeys.RESPONSE] == payload[MmuKeys.RESPONSE] and
+        self.mmu[MmuKeys.RESPONSE_DATA] == payload[MmuKeys.RESPONSE_DATA]
+      ):
+        return
       self.mmu = dict(
         state=payload[MmuKeys.STATE],
         lastLine=self.mmu[MmuKeys.LAST_LINE],
