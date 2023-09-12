@@ -10,6 +10,17 @@ $(() => {
     LOADING: "LOADING",
     PAUSED_USER: "PAUSED_USER",
     ATTENTION: "ATTENTION",
+    LOADING_MMU: "LOADING_MMU",
+    CUTTING: "CUTTING",
+    EJECTING: "EJECTING",
+  }
+  const RESPONSES = {
+    PROCESSING: "P",
+    ERROR: "E",
+    FINISHED: "F",
+    ACCEPTED: "A",
+    REJECTED: "R",
+    BUTTON: "B",
   }
   const FILAMENT_SOURCE_NAMES = {
     SPOOL_MANAGER: "spoolManager",
@@ -25,7 +36,8 @@ $(() => {
     self._toolId = 0;
     self._previousToolId = 0;
     self._toolState = "";
-    self._error = "";
+    self._response = "";
+    self._responseData = "";
 
     self.globalSettings = parameters[0]; // settingsViewModel
     self.loginState = parameters[1]; // loginStateViewModel
@@ -49,6 +61,8 @@ $(() => {
     self.navPreviousToolText = ko.observable("");
     self.navPreviousToolColor = ko.observable("inherited");
 
+    self.navMessageText = ko.observable("");
+
     /* =============================
      * =====   Nav Functions   =====
      * ============================= */
@@ -61,7 +75,7 @@ $(() => {
      * @param {[{id, name, type, color, enabled}, ...]} filament - The filament object representing
      *                                                              the tool (see getFilamentList())
      */
-    const getNavActionText = (state, tool, filament, hasPrevious) => {
+    const getNavActionText = (state, tool, filament, previous) => {
       if (state === "" || state === STATES.NOT_FOUND) {
         return gettext("Not Found"); 
       }
@@ -70,14 +84,14 @@ $(() => {
         case STATES.STARTING:
           return gettext("Starting...");
         case STATES.OK:
-          return gettext("Ready");
+          return gettext("Idle");
         case STATES.UNLOADING:
-          if (hasPrevious) {
+          if (!!previous && !!filament) {
             return gettext("Changing Filament...");
           }
           return gettext("Unloading...");
         case STATES.LOADING:
-          if (hasPrevious) {
+          if (!!previous && !!filament) {
             return gettext("Changing Filament...");
           }
           return gettext("Loading...");
@@ -85,6 +99,12 @@ $(() => {
           return gettext("Needs Attention!");
         case STATES.PAUSED_USER:
           return gettext("Awaiting User Input!");
+        case STATES.LOADING_MMU:
+          return gettext("Preloading...");
+        case STATES.CUTTING:
+          return gettext("Cutting...");
+        case STATES.EJECTING:
+          return gettext("Ejecting...");
       }
 
       return getFilamentDisplayName(tool, filament);
@@ -108,7 +128,7 @@ $(() => {
       }
 
       // Action Icon only shows global states
-      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED) {
+      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED || state === STATES.LOADING_MMU || state === STATES.CUTTING || state === STATES.EJECTING) {
         return ""
       }
       
@@ -133,6 +153,12 @@ $(() => {
           return gettext("Unloading") + " " + getFilamentDisplayName(tool, filament);
         case STATES.LOADING:
           return gettext("Loading") + " " + getFilamentDisplayName(tool, filament);
+        case STATES.LOADING_MMU:
+          return gettext("Preloading") + " " + getFilamentDisplayName(tool, filament);
+        case STATES.CUTTING:
+          return gettext("Cutting") + " " + getFilamentDisplayName(tool, filament);
+        case STATES.EJECTING:
+          return gettext("Ejecting") + " " + getFilamentDisplayName(tool, filament);
       }
 
       // If we made it here then the tool is loaded.
@@ -164,11 +190,37 @@ $(() => {
         [STATES.LOADED]: "fa-pen-fancy",
         [STATES.UNLOADING]: "fa-long-arrow-alt-up",
         [STATES.LOADING]: "fa-long-arrow-alt-down",
+        [STATES.LOADING_MMU]: "fa-long-arrow-alt-right",
+        [STATES.CUTTING]: "fa-scissors",
+        [STATES.EJECTING]: "fa-angles-up",
       };
       if (Object.keys(iconStates).indexOf(state) !== -1) {
         return iconStates[state];
       }
       
+      return "";
+    }
+
+   /**
+    * Get formatted text for the navbar message display based on the response code and data
+    * 
+    * @param {string} response - The single letter response code
+    * @param {string} responseData - The hexidecimal response data
+    */
+    const getNavMessageText = (response, responseData) => {
+      switch (response) {
+        case RESPONSES.PROCESSING:
+          return " -> " + processMmuProgress(responseData);
+        case RESPONSES.ERROR:
+          return " -> " + processMmuError(responseData).title;
+        case RESPONSES.FINISHED:
+          // Return blank string if finished. It looks nicer
+          return "";
+        case RESPONSES.ACCEPTED:
+          return " -> " + gettext("Starting");
+        case RESPONSES.REJECTED:
+          return " -> " + gettext("Command Rejected!");
+      }
       return "";
     }
 
@@ -179,7 +231,7 @@ $(() => {
      * @param {string} tool - The tool id. It _might_ have a T so we strip it here
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
      */
-    const updateNav = (state, tool, previousTool, error) => {
+    const updateNav = (state, tool, previousTool, response, responseData) => {
       const toolId = parseInt(tool, 10);
       const previousToolId = parseInt(previousTool, 10);
       let errorDetails = false;
@@ -187,7 +239,8 @@ $(() => {
       self._toolId = toolId;
       self._previousToolId = previousToolId;
       self._toolState = state;
-      self._error = error;
+      self._response = response;
+	  self._responseData = responseData;
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
       const currentFilament = filamentList.find(f => f.index === toolId);
@@ -199,28 +252,35 @@ $(() => {
       }
 
       // global state icon & text
-      self.navActionText(getNavActionText(state, toolId, currentFilament, !!previousFilament));
+      self.navActionText(getNavActionText(state, toolId, currentFilament, previousFilament));
       self.navActionIcon(getNavActionIcon(state));
 
-      // If error was present in the log we're dealing with an MMU running 3.0.0 so let's show more info.
-      if (error) {
-        errorDetails = processMmuError(error);
-        self.navActionText(errorDetails.title);
+      // If response was present in the log we're dealing with an MMU running 3.0.0 so let's show more info.
+      if (response) {
+        self.navMessageText(getNavMessageText(response, responseData));
+      } else {
+        self.navMessageText("");
       }
 
       // Filament specific icons & text
-      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED) {
-        if (previousTool && state !== STATES.LOADED) {
-          self.navPreviousToolColor(getNavToolColor(previousToolId, previousFilament));
-          self.navPreviousToolText(getNavToolText(previousToolId, STATES.UNLOADING, previousFilament));
+      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED || state === STATES.LOADING_MMU || state === STATES.CUTTING || state === STATES.EJECTING) {
+        // For Load / Unload, If previousTool exists, then that means this is a filament change. Manually set the states to fix the arrow directions
+        if (((state == STATES.LOADING) || (state ==STATES.UNLOADING)) && previousTool) {
+            self.navToolColor(getNavToolColor(toolId, currentFilament));
+            self.navToolText(getNavToolText(toolId, STATES.LOADING, currentFilament));
+            self.navToolIcon(getNavToolIcon(STATES.LOADING));
+
+            self.navPreviousToolColor(getNavToolColor(previousToolId, previousFilament));
+            self.navPreviousToolText(getNavToolText(previousToolId, STATES.UNLOADING, previousFilament));
+        // If previousTool doesn't exist, or if it's not a load/unload, it's just a normal single display
         } else {
+          self.navToolColor(getNavToolColor(toolId, currentFilament));
+          self.navToolText(getNavToolText(toolId, state, currentFilament));
+          self.navToolIcon(getNavToolIcon(state));
+
           self.navPreviousToolColor("inherited");
           self.navPreviousToolText("");
         }
-        // TODO: handle the final unload where we dont have a "current filament".
-        self.navToolColor(getNavToolColor(toolId, currentFilament));
-        self.navToolText(getNavToolText(toolId, state, currentFilament));
-        self.navToolIcon(getNavToolIcon(state))
       } else {
         self.navToolColor("inherited");
         self.navToolText("");
@@ -232,13 +292,14 @@ $(() => {
       log(
         "updateNav",
         { 
-          "params": { "tool": toolId, "previousTool": previousToolId, "state": state, "error": error },
+          "params": { "tool": toolId, "previousTool": previousToolId, "state": state, "response": response, "responseData": responseData},
           "currentFilament": currentFilament,
           "previousFilament": previousFilament,
           "action": { "text": self.navActionText(), "icon": self.navActionIcon() },
           "tool": { "text": self.navToolText(), "icon": self.navActionIcon(), "color": self.navToolColor() },
           "prevTool": { "text": self.navPreviousToolText(), "color": self.navPreviousToolColor() },
-          "error": self._error,
+          "response": self._response,
+          "responseData": self._responseData,
         }
       );
     };
@@ -269,9 +330,9 @@ $(() => {
       setTimeout(() => {
         log(
           "delayedRefreshNav", self.filamentRetryCount,
-          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId, "error": self._error }
+          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId, "response": self._response, "responseData": self._responseData  }
         );
-        updateNav(self._toolState, self._toolId, self._previousToolId, self._error);
+        updateNav(self._toolState, self._toolId, self._previousToolId, self._response, self._responseData);
       }, 1000 * self.filamentRetryCount);
     };
 
@@ -365,7 +426,7 @@ $(() => {
           closeModal();
           break;
         case "nav":
-         updateNav(data.state, data.tool, data.previousTool, data.error);
+         updateNav(data.state, data.tool, data.previousTool, data.response, data.responseData);
           break;
         // case "debug": these just exist to get logged and we do that above.
       }
@@ -578,12 +639,12 @@ $(() => {
      */
     const showError = () => {
       const idPrefix = "#settings_plugin_prusammu #prusammu_error_";
-      if (!self._error || self._toolState !== STATES.ATTENTION) {
+      if (!(self._response === RESPONSES.ERROR)) {
         $(`${idPrefix}zone`).addClass("hide");
         return;
       }
 
-      const error = processMmuError(self._error);
+      const error = processMmuError(self._responseData);
       $(`${idPrefix}title`).text(error.title);
       $(`${idPrefix}code`).text(error.code);
       $(`${idPrefix}text`).text(error.text);
@@ -594,7 +655,7 @@ $(() => {
     /**
      * Given the error code it generates an error object with more information.
      * 
-     * @param {string} code - The string identifier for the error. Will be "E" followed by a 4 digit hex code.
+     * @param {string} code - The error code hexidecimal value as a string
      * @returns {code, title, text, url}
      */
     const processMmuError = (code) => {
@@ -605,6 +666,17 @@ $(() => {
         text: error.text,
         url: `https://prusa.io/${error.code}`,
       };
+    };
+
+   /**
+    * Given the progress code it returns a string contraining the progress message
+    *
+    * @param {string} code - The progress code hexidecimal value as a string
+    * @returns string
+    */
+    const processMmuProgress = (code) => {
+      const progress = getMmuProgress(code);
+      return progress;
     };
 
     /**
