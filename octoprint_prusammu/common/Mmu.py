@@ -60,10 +60,13 @@ class MMU3Codes():
   # Group 3 is the response code. It shows that current status of the command the MMU is performing. Possible responses: P,E,F,A,R,B
   # Group 4 is the response data. It contains extra info in hex depending on the response code. The amount of hex data can range, or even be empty! Check MMU3ResponseCodes below for more info
   GROUP_MATCH="MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*"
-  # These two lines can be used to tell that the MMU is stopped, waiting for user
+  # These two lines can be used to tell that the MMU is stopped, waiting for user. Some errors trigger both lines, or spam one of them, so deduplication is used in gcode_received_hook
+  # Saving and Parking - This appears the first time an error occurs, when the printer pauses itself to wait. It doesn't happen again if another error occurs before the printer resumes. MMU MCU ERROR seems to spam this every error, so twice a second!
   SAVING_PARKING="MMU2:Saving and parking"
+  # Heater Cooldown Pending - Seems to only display sometimes. For example, a MMU MCU ERROR doesn't show it, but a error while cutting will, even though heater temp isn't a factor in that case. If it shows, it shows after every error where it waits.
   COOLDOWN_PENDING="MMU2:Heater cooldown pending"
-  # This is our only sign that the user is done with a PAUSED_USER event.
+  # There's not much feedback that the printer is done being paused other than "paused for user" stops showing in the logs. This line follows MOST instances of pausing ending, but possibly not all
+  # A new MMU response will still clear the paused state, but this line is useful to clear the state when the MMU response doesn't change. Example of this: Confirmation of filament change after Load to Nozzle
   LCD_CHANGED="LCD status changed"
 
 # These request codes are commands sent by the printer to the MMU, but the MMU responds with the same code during the Q - Query request, and 

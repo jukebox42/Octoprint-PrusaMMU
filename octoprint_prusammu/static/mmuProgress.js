@@ -22,7 +22,6 @@ const getMmuProgress = (code) => {
  * https://github.com/prusa3d/Prusa-Firmware/blob/MK3/Firmware/mmu2_progress_converter.cpp
  */
 const MMU2MmuProgressStrings = {
-
   "0": "OK",
   "1": "Engaging idler",
   "2": "Disengaging idler",

@@ -247,11 +247,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       matchedCommand = search(MMU3Codes.GROUP_MATCH, line)
       #self._log("Matched Line Info: Line: " + line + " Groups: " + matchedCommand.group(1) + "," + matchedCommand.group(2) + "," + matchedCommand.group(3) + "," + matchedCommand.group(4), debug=True)
 
-      # Since we rely on other lines to determine attention, if we're already at attention, and the line has an error, throw attention again and add the error code, just in case. This won't be spammed because of LAST_LINE
-      if (self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION):
-        if (matchedCommand.group(3) == MMU3ResponseCodes.ERROR):
-          self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION, response=matchedCommand.group(3), responseData=matchedCommand.group(4)))
-          return line
+      # If we're already at attention, and the new MMU response has an error, stay at attention and add the error code, then stop checking. Otherwise the new MMU response shows that the ATTENTION has cleared, so continue and get the new state
+      if ((self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION) and (matchedCommand.group(3) == MMU3ResponseCodes.ERROR)):
+        self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION, response=matchedCommand.group(3), responseData=matchedCommand.group(4)))
+        return line
 
       # Load filament to nozzle
       if (matchedCommand.group(1) == MMU3RequestCodes.TOOL):
@@ -304,12 +303,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return line
 
     # Catch other MMU3 lines not caught by regex
-    #ATTENTION
-    elif ((MMU3Codes.SAVING_PARKING in line) or (MMU3Codes.COOLDOWN_PENDING in line)):
+    # ATTENTION. Some errors spam one of these lines, so deduplicate them here. It's possible some error may not print one of these lines, but I haven't found one
+    elif ((MMU3Codes.SAVING_PARKING in line) or (MMU3Codes.COOLDOWN_PENDING in line)) and (self.mmu[MmuKeys.STATE] != MmuStates.ATTENTION):
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
-    #PAUSED_USER is caught in the MMU2 section early on in this function, but we need to recover from it if the MMU's response is the same as LAST_LINE
+    # PAUSED_USER is caught in the MMU2 section early on in this function, but we need to recover from it if the MMU's response is the same as LAST_LINE
     elif ((self.mmu[MmuKeys.STATE] == MmuStates.PAUSED_USER) and (MMU3Codes.LCD_CHANGED in line)):
-      #If detected, blank out LAST_LINE. The next mmu response in the log will trigger again and change the state away from PAUSED_USER
+      # If detected, blank out LAST_LINE. The next mmu response in the log will trigger again and change the state away from PAUSED_USER
       self.mmu[MmuKeys.LAST_LINE] = ""
 
     return line
@@ -352,9 +351,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== EventHandlerPlugin ========
 
   def _fire_event(self, key, payload=None):
-      # Steps are taken in gcode_received_hook to reduce the spamminess of events. Proper deduplication happens in on_event
-      #self._log("_fire_event {} with".format(key), obj=payload, debug=True)
-      self._event_bus.fire(key, payload=payload)
+    # Steps are taken in gcode_received_hook to reduce the spamminess of events. Proper deduplication happens in on_event
+    #self._log("_fire_event {} with".format(key), obj=payload, debug=True)
+    self._event_bus.fire(key, payload=payload)
 
   def register_custom_events(*args, **kwargs):
     return [

@@ -240,7 +240,7 @@ $(() => {
       self._previousToolId = previousToolId;
       self._toolState = state;
       self._response = response;
-	  self._responseData = responseData;
+      self._responseData = responseData;
       // Fetch filament data from the correct source
       const filamentList = self.getFilamentList();
       const currentFilament = filamentList.find(f => f.index === toolId);
