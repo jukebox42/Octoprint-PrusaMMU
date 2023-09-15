@@ -56,16 +56,32 @@ events and printer notifications, so we can update the navbar: (gcode_received_h
   - `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
   - `OO succeeded` - Used to show what filament is loaded.
 
-MMU2/3 3.X.X
-  - `Cap:PRUSA_MMU2:1` - Used to show the printer is "OK" (MMU found)
-  - `paused for user` - Used to show that the printer needs attention.
-  - `MMU2:<(?:[^E]*) (E[^*]*)` - Used to show the printer triggered an error. (these show up like `MMU2:<T0 E800d`)
-  - `MMU2<S3 A` / `MMU2:<X[0-4] F` - Used to show the printer is "OK".
-  - `/MMU2:<U[0-4] A/` - Used to show the filament is unloading.
-  - `/MMU2:<U[0-4] F/` - Used to show the filament unloaded.
-  - `FEED_FINDA` / `/MMU2:<:L[0-4] P/` - Used to show the filament is loading.
-  - `MMU2:Disengaging idler` - Used to show the filament loaded (on single filament prints)
-  - `ResetRetryAttempts` / `/MMU2:<T[0-4] F/` - Used to show the filament loaded (on multi-color prints)
+MMU2/3 3.X.X:
+
+The MMU 3.x.x firmware communicates continuously with the printer. The printer sends the MMU Requests, 
+and the MMU sends back Responses. The MMU's Responses start with the Request Letter and Data, so we just
+listen for the Responses.
+
+MMU 3.x.x responses come in this format:  
+`MMU2:<(Request Letter)(Request Data) (Response Letter)(Response Data)`
+  - `(Request Letter)` - A single letter code that represents a request sent from the printer to the MMU.
+    - We only listen for `T` - Tool, `L` - Load, `U` - Unload, `X` - Reset, `K` - Cut, and `E` - Eject.
+  - `(Request Data)` - Hexidecimal data that follows the Request Letter.
+    - It's usually `0`, unless the request involves filament, in which case it is the filament number `[0-4]`.
+  - `(Response Letter)` - A single letter code that represents a response from the MMU.
+    - Possible responses are `P` - Processing, `E` - Error, `F` - Finished, `A` - Accepted, `R` - Rejected, and `B` - Button.
+  - `(Response Data)` - Hexidecimal data that follows the Response Letter.
+    - The amount of data varies depending on the Request Letter and Response Letter.
+    - We only use Response Data to decode `P` - Progress messages, and `E` - Error messages
+
+Several Regex strings are used to parse the MMU 3.x.x responses:
+  - `MMU2:<[TLUXKE]` - Generic Regex used to catch the responses with the Request Letters that are important.
+  - `MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*` - Used to split the command into the four groups described above.
+
+Additionally, we also listen for these other lines:
+  - `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the MMU fails at auto-retrying after an Error.
+  - `MMU2:Heater cooldown pending` - The same as above. Might be unecessary, but I included both just in case.
+  - `LCD status changed` - If the printer is paused, this tells us that the pause is probably over.
 
 For all instances of where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
 look at function `_timeout_prompt` where we handle unpausing the printer after the timer and either
@@ -96,14 +112,16 @@ Here is a list of states used internally. These will be the `state` value in eve
 - `PAUSED_USER` - Printer is awaiting user input OR filament dialog is present.
 - `ATTENTION` - Printer needs user attention, could be MMU error or printer prompt (like new
   software version available).
+- `LOADING_MMU` - MMU is preloading filiment to the MMU (not to nozzle)
+- `CUTTING` - MMU is cutting the filament
+- `EJECTING` - MMU is ejecting the filament
 
 ### Errors
 
 New when using MMU 3.0.0!
 
-When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `X` in this
-case could be a series of letters depending on the type of message coming back. The `E` represents
-there being an Error and the `800d` is the hex code of the error.
+When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `E` Response Letter represents
+there being an Error and the `800d` is the hex Response Data of the error.
 
 We map those hex codes in `static/mmuErrors.js` to get the details about the errors. Mapping was
 done by hand (i'll automate it eventually). To get the url of the error you just need to append the
@@ -115,7 +133,7 @@ A number of events are fired you can listen to.
 
 #### `plugin_prusammu_mmu_changed`
 
-MMU data changed; Either state, tool, or previous tool was updated.
+MMU data changed; Either state, tool, previous tool, response, or response data was updated.
 
 Payload:
 ```javascript
@@ -123,7 +141,8 @@ Payload:
   state: string
   tool: int
   previousTool: int
-  error: string
+  response: string
+  responseData: string
 }
 ```
 
@@ -141,7 +160,8 @@ Payload:
   state: string
   tool: int
   previousTool: int
-  error: string
+  response: string
+  responseData: string
 }
 ```
 
