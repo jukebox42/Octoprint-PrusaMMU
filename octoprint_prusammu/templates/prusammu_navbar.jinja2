@@ -11,11 +11,12 @@
     hidden: navToolIcon() == '',
     attr: { title: navToolText }
   "></i>
-  <i class="fas" data-bind=",
+  <i class="fas" data-bind="
     class: navActionIcon,
     hidden: navActionIcon() == '',
     attr: { title: navActionText }
   "></i>
   <span data-bind="text: navActionText, hidden: isSimpleDisplayMode"></span>
+  <i class="fas fa-arrow-right" data-bind="hidden: navMessageText() == '' || isSimpleDisplayMode"></i>
   <span data-bind="text: navMessageText, hidden: isSimpleDisplayMode"></span>
 </a>

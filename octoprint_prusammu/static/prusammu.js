@@ -210,16 +210,16 @@ $(() => {
     const getNavMessageText = (response, responseData) => {
       switch (response) {
         case RESPONSES.PROCESSING:
-          return " -> " + processMmuProgress(responseData);
+          return processMmuProgress(responseData);
         case RESPONSES.ERROR:
-          return " -> " + processMmuError(responseData).title;
+          return processMmuError(responseData).title;
         case RESPONSES.FINISHED:
           // Return blank string if finished. It looks nicer
           return "";
         case RESPONSES.ACCEPTED:
-          return " -> " + gettext("Starting");
+          return gettext("Starting");
         case RESPONSES.REJECTED:
-          return " -> " + gettext("Command Rejected!");
+          return gettext("Command Rejected!");
       }
       return "";
     }
@@ -234,8 +234,7 @@ $(() => {
     const updateNav = (state, tool, previousTool, response, responseData) => {
       const toolId = parseInt(tool, 10);
       const previousToolId = parseInt(previousTool, 10);
-      let errorDetails = false;
-      // Remember these, we may neec them again
+      // Remember these, we may need them again
       self._toolId = toolId;
       self._previousToolId = previousToolId;
       self._toolState = state;
