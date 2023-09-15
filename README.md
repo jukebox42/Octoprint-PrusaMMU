@@ -58,9 +58,9 @@ events and printer notifications, so we can update the navbar: (gcode_received_h
 
 MMU2/3 3.X.X:
 
-The MMU 3.x.x firmware communicates continuously with the printer. The printer sends the MMU Requests, 
-and the MMU sends back Responses. The MMU's Responses start with the Request Letter and Data, so we just
-listen for the Responses.
+The MMU 3.x.x firmware communicates continuously with the printer. The printer sends the MMU
+Requests, and the MMU sends back Responses. The MMU's Responses start with the Request Letter and
+Data, so we just listen for the Responses.
 
 MMU 3.x.x responses come in this format:  
 `MMU2:<(Request Letter)(Request Data) (Response Letter)(Response Data)`
@@ -69,7 +69,8 @@ MMU 3.x.x responses come in this format:
   - `(Request Data)` - Hexidecimal data that follows the Request Letter.
     - It's usually `0`, unless the request involves filament, in which case it is the filament number `[0-4]`.
   - `(Response Letter)` - A single letter code that represents a response from the MMU.
-    - Possible responses are `P` - Processing, `E` - Error, `F` - Finished, `A` - Accepted, `R` - Rejected, and `B` - Button.
+    - Possible responses are `P` - Processing, `E` - Error, `F` - Finished, `A` - Accepted,
+      `R` - Rejected, and `B` - Button.
   - `(Response Data)` - Hexidecimal data that follows the Response Letter.
     - The amount of data varies depending on the Request Letter and Response Letter.
     - We only use Response Data to decode `P` - Progress messages, and `E` - Error messages
@@ -79,8 +80,10 @@ Several Regex strings are used to parse the MMU 3.x.x responses:
   - `MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*` - Used to split the command into the four groups described above.
 
 Additionally, we also listen for these other lines:
-  - `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the MMU fails at auto-retrying after an Error.
-  - `MMU2:Heater cooldown pending` - The same as above. Might be unecessary, but I included both just in case.
+  - `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the
+    MMU fails at auto-retrying after an Error.
+  - `MMU2:Heater cooldown pending` - The same as above. Might be unecessary, but I included both
+    just in case.
   - `LCD status changed` - If the printer is paused, this tells us that the pause is probably over.
 
 For all instances of where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
@@ -120,8 +123,8 @@ Here is a list of states used internally. These will be the `state` value in eve
 
 New when using MMU 3.0.0!
 
-When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `E` Response Letter represents
-there being an Error and the `800d` is the hex Response Data of the error.
+When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `E`
+Response Letter represents there being an Error and the `800d` is the hex Response Data of the error.
 
 We map those hex codes in `static/mmuErrors.js` to get the details about the errors. Mapping was
 done by hand (i'll automate it eventually). To get the url of the error you just need to append the
@@ -288,6 +291,11 @@ needs some work feel free to open a PR or cut an issue, and I'll do my best to r
 
 If you can figure out how to get the MMU state data (when it's errored) please let me know, and I'll
 add it. I tried to find it but was unsuccessful.
+
+Special thanks to:
+- [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.
+- [@Kevman323](https://github.com/Kevman323) for a significant revamp of the MMU 3.0.0 code,
+  cleaning up error codes, and bringing in more data to the nav.
 
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
