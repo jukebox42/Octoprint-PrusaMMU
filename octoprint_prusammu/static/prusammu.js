@@ -50,6 +50,7 @@ $(() => {
     self.modal = undefined;
 
     self.isSimpleDisplayMode = ko.observable(false);
+    self.isAdvancedDisplayMode = ko.observable(true);
     self.shouldShowNav = ko.observable(false);
 
     self.navActionText = ko.observable("Not Found");
@@ -128,7 +129,14 @@ $(() => {
       }
 
       // Action Icon only shows global states
-      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED || state === STATES.LOADING_MMU || state === STATES.CUTTING || state === STATES.EJECTING) {
+      if (
+        state === STATES.UNLOADING ||
+        state === STATES.LOADING ||
+        state === STATES.LOADED ||
+        state === STATES.LOADING_MMU ||
+        state === STATES.CUTTING ||
+        state === STATES.EJECTING
+      ) {
         return ""
       }
       
@@ -191,8 +199,8 @@ $(() => {
         [STATES.UNLOADING]: "fa-long-arrow-alt-up",
         [STATES.LOADING]: "fa-long-arrow-alt-down",
         [STATES.LOADING_MMU]: "fa-long-arrow-alt-right",
-        [STATES.CUTTING]: "fa-scissors",
-        [STATES.EJECTING]: "fa-angles-up",
+        [STATES.CUTTING]: "fa-cut",
+        [STATES.EJECTING]: "fa-eject",
       };
       if (Object.keys(iconStates).indexOf(state) !== -1) {
         return iconStates[state];
@@ -210,9 +218,9 @@ $(() => {
     const getNavMessageText = (response, responseData) => {
       switch (response) {
         case RESPONSES.PROCESSING:
-          return processMmuProgress(responseData);
+          return self.processMmuProgress(responseData);
         case RESPONSES.ERROR:
-          return processMmuError(responseData).title;
+          return self.processMmuError(responseData).title;
         case RESPONSES.FINISHED:
           // Return blank string if finished. It looks nicer
           return "";
@@ -291,7 +299,13 @@ $(() => {
       log(
         "updateNav",
         { 
-          "params": { "tool": toolId, "previousTool": previousToolId, "state": state, "response": response, "responseData": responseData},
+          "params": {
+            "tool": toolId,
+            "previousTool": previousToolId,
+            "state": state,
+            "response": response,
+            "responseData": responseData
+          },
           "currentFilament": currentFilament,
           "previousFilament": previousFilament,
           "action": { "text": self.navActionText(), "icon": self.navActionIcon() },
@@ -329,7 +343,13 @@ $(() => {
       setTimeout(() => {
         log(
           "delayedRefreshNav", self.filamentRetryCount,
-          { "state": self._toolState, "tool": self._toolId, "prevTool": self._previousToolId, "response": self._response, "responseData": self._responseData  }
+          { 
+            "state": self._toolState,
+            "tool": self._toolId,
+            "prevTool": self._previousToolId,
+            "response": self._response,
+            "responseData": self._responseData
+          }
         );
         updateNav(self._toolState, self._toolId, self._previousToolId, self._response, self._responseData);
       }, 1000 * self.filamentRetryCount);
@@ -439,6 +459,7 @@ $(() => {
       log("onSettingsBeforeSave");
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
+      self.isAdvancedDisplayMode(self.settings.advancedDisplayMode() && !self.settings.simpleDisplayMode());
     };
 
     /**
@@ -643,7 +664,7 @@ $(() => {
         return;
       }
 
-      const error = processMmuError(self._responseData);
+      const error = self.processMmuError(self._responseData);
       $(`${idPrefix}title`).text(error.title);
       $(`${idPrefix}code`).text(error.code);
       $(`${idPrefix}text`).text(error.text);
@@ -657,7 +678,7 @@ $(() => {
      * @param {string} code - The error code hexidecimal value as a string
      * @returns {code, title, text, url}
      */
-    const processMmuError = (code) => {
+    self.processMmuError = (code) => {
       const error = getMmuError(code);
       return {
         code: error.code,
@@ -668,15 +689,12 @@ $(() => {
     };
 
    /**
-    * Given the progress code it returns a string contraining the progress message
+    * Given the progress code it returns a string containing the progress message
     *
     * @param {string} code - The progress code hexidecimal value as a string
     * @returns string
     */
-    const processMmuProgress = (code) => {
-      const progress = getMmuProgress(code);
-      return progress;
-    };
+    self.processMmuProgress = (code) => getMmuProgress(code);
 
     /**
      * Simple function to log out debug messages if debug is on. Use like you would console.log().

@@ -3,7 +3,7 @@
 **Description:** This plugin adds Prusa MMU2 support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
 "MMU2S Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for a Prusa printer with an MMU2.
+only works for a Prusa printer with an MMU2. Supports MMU firmware `1.X.X` and `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -211,6 +211,38 @@ Filament object properties:
   or spoolManager.
 - `color` - The color of the filament.
 - `enabled` Whether the filament is enabled in prusammu (when using prusammu as the source).
+
+#### `processMmuProgress(responseData)`
+
+Given the progress code it returns a string containing the progress message.
+
+If the value of `responseData` is one of [`P`, `E`, `F`, `A`, `R`] than you can pass `responseData`
+to get more details about the progress like `"Unloading to FINDA"`.
+
+Returns: `string`
+
+#### `processMmuError(responseData)`
+
+Given the error code it generates an error object with more information.
+
+If the value of `response` is `E` (Error) you can send this function `responseData` to get the
+error details.
+
+Returns:
+```javascript
+{
+  code: "04401",
+  title: "MMU NOT RESPONDING",
+  text: "MMU not responding. Check the wiring and connectors.",
+  url: `https://prusa.io/802e`,
+}
+```
+
+Object properties:
+- `code` - The error code.
+- `title` - The name of the error.
+- `text` - The description of the error.
+- `url` - The Prusa short url of the error. These are formatted like: `https://prusa.io/{code}`.
 
 ## Working on the PrusaMMU plugin
 
