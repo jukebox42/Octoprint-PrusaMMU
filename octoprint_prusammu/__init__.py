@@ -481,6 +481,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       useDefaultFilament=False,
       displayActiveFilament=True,
       simpleDisplayMode=False,
+      advancedDisplayMode=True,
       defaultFilament=-1,
       indexAtZero=False,
       classicColorPicker=False,
@@ -529,6 +530,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.config[SettingsKeys.DEBUG] = self._settings.get_boolean([SettingsKeys.DEBUG])
     self.config[SettingsKeys.SIMPLE_DISPLAY_MODE] = self._settings.get_boolean([
       SettingsKeys.SIMPLE_DISPLAY_MODE])
+    self.config[SettingsKeys.ADVANCED_DISPLAY_MODE] = self._settings.get_boolean([
+      SettingsKeys.ADVANCED_DISPLAY_MODE])
 
     self.config[SettingsKeys.TIMEOUT] = self._settings.get_int([SettingsKeys.TIMEOUT])
     self.config[SettingsKeys.USE_DEFAULT_FILAMENT] = self._settings.get_boolean([

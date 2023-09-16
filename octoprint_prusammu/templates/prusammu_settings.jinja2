@@ -121,6 +121,16 @@
     </div>
   </div>
 
+  <div class="control-group" data-bind="visible: !settings.plugins.prusammu.simpleDisplayMode()">
+    <div class="controls">
+      <label class="checkbox">
+        <input type="checkbox" data-bind="checked: settings.plugins.prusammu.advancedDisplayMode" />
+        {{ _("Advanced display mode") }}
+      </label>
+      <span class="help-block">{{ _("Check to show more precise details about the MMU (Only works with 3.0.0).") }}</span>
+    </div>
+  </div>
+
   <div>
     <div>
       <small>

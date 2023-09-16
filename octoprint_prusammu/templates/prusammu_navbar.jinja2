@@ -17,6 +17,6 @@
     attr: { title: navActionText }
   "></i>
   <span data-bind="text: navActionText, hidden: isSimpleDisplayMode"></span>
-  <i class="fas fa-arrow-right" data-bind="hidden: navMessageText() == '' || isSimpleDisplayMode"></i>
-  <span data-bind="text: navMessageText, hidden: isSimpleDisplayMode"></span>
+  <i class="fas fa-chevron-right" data-bind="visible: isAdvancedDisplayMode() && navMessageText() != ''"></i>
+  <span data-bind="text: navMessageText, visible: isAdvancedDisplayMode"></span>
 </a>
