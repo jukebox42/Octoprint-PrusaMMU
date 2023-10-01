@@ -1,9 +1,9 @@
 # Octoprint-PrusaMMU
 
-**Description:** This plugin adds Prusa MMU2 support to OctoPrint. The active filament will be
+**Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
-"MMU2S Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for a Prusa printer with an MMU2. Supports MMU firmware `1.X.X` and `3.X.X`.
+"MMU Single" mode. Other settings are available to name each tool and set defaults. This plugin
+only works for Prusa printers with an MMU. Supports MMU firmware `1.X.X` and `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -13,11 +13,11 @@ or manually by selecting the latest zip:
 
     https://github.com/jukebox42/Octoprint-PrusaMMU/releases/latest/download/Octoprint-PrusaMmu.zip
 
-## Configuration
-
-- Set a timeout to auto-select an extruder
-- Enable/disable extruders, name them, and give them a color
-- Show/hide navbar item (and simplify the display)
+## Highlighted Featured
+- Displays MMU state in the navbar (configurable)
+- (Optional) Default to a filament if none are selected
+- On single color prints, shows a modal to select the filament within Octoprint
+- Displays an error popup when the MMU throws an error (Only when running 3.0.0+)
 - Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
   and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
 
@@ -320,9 +320,6 @@ Examples:
 
 I built this plugin for fun, and because I wanted better MMU support. If you catch a bug or think it
 needs some work feel free to open a PR or cut an issue, and I'll do my best to review it.
-
-If you can figure out how to get the MMU state data (when it's errored) please let me know, and I'll
-add it. I tried to find it but was unsuccessful.
 
 Special thanks to:
 - [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.

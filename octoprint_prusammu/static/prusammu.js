@@ -30,6 +30,8 @@ $(() => {
 
   function PrusaMMU2ViewModel(parameters) {
     const self = this;
+    // Used to refresh the UI when the user tabs away.
+    let isActiveTab = true;
     // Track if we've loaded the filament or not. Useful for spool managers that are slow to load.
     self.filamentRetryCount = 0;
     // Keep track so we can refresh if needed
@@ -38,6 +40,7 @@ $(() => {
     self._toolState = "";
     self._response = "";
     self._responseData = "";
+    self._lastError = "";
 
     self.globalSettings = parameters[0]; // settingsViewModel
     self.loginState = parameters[1]; // loginStateViewModel
@@ -264,14 +267,25 @@ $(() => {
 
       // If response was present in the log we're dealing with an MMU running 3.0.0 so let's show more info.
       if (response) {
+        // If there was an error then let's show a popup to the user. But only once.
+        if (response === RESPONSES.ERROR && !self._lastError) {
+          self._lastError = responseData;
+          showErrorPopupNotification(self.processMmuError(responseData));
+        } else {
+          self._lastError = "";
+        }
         self.navMessageText(getNavMessageText(response, responseData));
       } else {
         self.navMessageText("");
       }
 
       // Filament specific icons & text
-      if (state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED || state === STATES.LOADING_MMU || state === STATES.CUTTING || state === STATES.EJECTING) {
-        // For Load / Unload, If previousTool exists, then that means this is a filament change. Manually set the states to fix the arrow directions
+      if (
+        state === STATES.UNLOADING || state === STATES.LOADING || state === STATES.LOADED ||
+        state === STATES.LOADING_MMU || state === STATES.CUTTING || state === STATES.EJECTING
+      ) {
+        // For Load / Unload, If previousTool exists, then that means this is a filament change.
+        // Manually set the states to fix the arrow directions
         if (((state == STATES.LOADING) || (state ==STATES.UNLOADING)) && previousTool) {
             self.navToolColor(getNavToolColor(toolId, currentFilament));
             self.navToolText(getNavToolText(toolId, STATES.LOADING, currentFilament));
@@ -353,6 +367,21 @@ $(() => {
         );
         updateNav(self._toolState, self._toolId, self._previousToolId, self._response, self._responseData);
       }, 1000 * self.filamentRetryCount);
+    };
+
+    /**
+     * When we get an error, show a popup as well with the link.
+     * 
+     * @param {object} mmuError - The error object
+     */
+    const showErrorPopupNotification = (mmuError) => {
+      new PNotify({
+        title: `Prusa MMU: ${mmuError.title} (#${mmuError.code})`,
+        text: `<p>${mmuError.text}</p>` +
+              `<p><a target="_blank" href="${mmuError.url}">${mmuError.url}</a></p>`,
+        type: "warning",
+        hide: false,
+      });
     };
 
     /* =============================
@@ -486,6 +515,7 @@ $(() => {
       self.shouldShowNav(self.settings.displayActiveFilament());
       self.isSimpleDisplayMode(self.settings.simpleDisplayMode());
       OctoPrint.simpleApiCommand(PLUGIN_NAME, "getmmu");
+      setupRefocusCheck();
     };
 
     /* =============================
@@ -623,12 +653,33 @@ $(() => {
      * ============================= */
 
     /**
+     * Used to watch when the browser tab is focused. This makes a call to check the mmu state to
+     * avoid a stale event. If the tab wasn't opened when the new command happened we might have
+     * missed it.
+     */
+    const setupRefocusCheck = () => {
+      log("setupRefocusCheck");
+      setInterval(() => {
+        if (document.hidden) {
+          isActiveTab = false;
+          return;
+        }
+        if (!document.hidden && isActiveTab) {
+          return;
+        }
+        log("setupRefocusCheck:", "Refreshing nav");
+        isActiveTab = true;
+        OctoPrint.simpleApiCommand(PLUGIN_NAME, "getmmu");
+      }, 10000);
+    };
+
+    /**
      * Binds the color picker to the buttons in the settings menu. We call this every time the
      * settings menu is opened but it will not rebind (see colorPicker.init) unless settings is
      * saved, a settings save seems to destroy the settings view and rebuild it.
      */
     const bindPickers = () => {
-      const pallete = [
+      const palette = [
         "#FFFFFF", "#f0f8ff", "#C0C0C0", "#808080", "#000000",
         "#add8e6", "#008080", "#008b8b", "#0000FF", "#00008B",
         "#00FF00", "#008000", "#006400", "#800080", "#9400d3",
@@ -644,7 +695,7 @@ $(() => {
           recentLabel: gettext("Recent color:"),
           allowCustomColor: true,
           drawUp: (index > 2),
-          palette: pallete,
+          palette: palette,
           onColorSelected: function() {
             const index = this.element.attr("data-index");
             self.settings.filament()[index].color(this.color);
