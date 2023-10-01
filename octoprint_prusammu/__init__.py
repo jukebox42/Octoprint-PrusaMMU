@@ -9,7 +9,8 @@ import octoprint.plugin
 from octoprint.server import user_permission
 from octoprint.events import Events
 
-from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU2Commands, MMU3Codes, MMU3RequestCodes, MMU3ResponseCodes, DEFAULT_MMU_STATE
+from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU2Commands, MMU3Codes, \
+  MMU3RequestCodes, MMU3ResponseCodes, DEFAULT_MMU_STATE
 from octoprint_prusammu.common.PluginEventKeys import PluginEventKeys
 from octoprint_prusammu.common.SettingsKeys import SettingsKeys
 from octoprint_prusammu.common.StateKeys import StateKeys, DEFAULT_STATE
@@ -115,12 +116,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self._log("on_api_command T{}".format(choice), debug=True)
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
       self._done_prompt(choice)
+      return
 
     if command == "getmmu":
-      if not user_permission.can():
-        return abort(403, "Insufficient permissions")
-      
       self._fire_event(PluginEventKeys.REFRESH_NAV)
+      return
 
 
   # ======== Prompt ========
