@@ -33,7 +33,7 @@ Note: Make sure you don't send the *XX at the end of lines. Virtual printer lose
 !!DEBUG:send MMU2:<X0 F0
 
 # Error
-!!DEBUG:send MMU2:<L0 E800d
+!!DEBUG:send MMU2:<L0 E800d*
 
 # Button (must be in error mode)
 !!DEBUG:send MMU2:Button
@@ -42,16 +42,14 @@ Note: Make sure you don't send the *XX at the end of lines. Virtual printer lose
 !!DEBUG:send MMU2:OK
 
 # Unload Start (must not be in unloading)
-!!DEBUG:send MMU2:<U1 A0
+!!DEBUG:send MMU2:<U1 A0*
 
 # Unload Finished (must be in unloading)
-!!DEBUG:send MMU2:<U1 F0 
+!!DEBUG:send MMU2:<U1 F0*
 
 # Load Start (must not be in loading)
 !!DEBUG:send MMU2:Feeding to FINDA
-!!DEBUG:send MMU2:<:L2 P0
+!!DEBUG:send MMU2:<L2 P0*
 
 # Load Finished (must be in loading unless using the last one)
-!!DEBUG:send MMU2:Disengaging idler
-!!DEBUG:send ResetRetryAttempts
-!!DEBUG:send MMU2:<T2 F0
+!!DEBUG:send MMU2:<T2 F0*
