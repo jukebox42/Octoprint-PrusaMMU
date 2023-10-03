@@ -27,6 +27,8 @@ or manually by selecting the latest zip:
 
 ![Navbar](/screenshots/nav.png)
 
+![Error](/screenshots/error.png)
+
 ![Settings](/screenshots/settings.png)
 
 ## GCode Interactions
@@ -37,18 +39,20 @@ print to provide the dialog.
 The command interactions are as follows:
 - Before sent: (gcode_queuing_hook)
   - `Tx`: When the GCODE would send a `Tx` (tool change) it first triggers the modal and then does
-    not send the Tx command. Instead, it sends a pause event to the printer. This results in Prusa
+    not send the `Tx` command. Instead, it sends a pause event to the printer. This results in Prusa
     not prompting for a tool change. If the timeout time is reached (`_timeout_prompt`) then the
     plugin resends the `Tx` command to allow Prusa to prompt the user.
-  - `M109`: When the GCODE would send an `M109` (Wait for Hotend Temperature) and the user
-    has selected a filament we send both the `M109` and `T#` (like `T2`), otherwise we just send the
+  - `M109`: When the GCODE would send an `M109` (Wait for Hotend Temperature) and the user has
+    selected a filament it sends both the `M109` and `T#` (like `T2`), otherwise it just sends the
     `M109`.
 - After sent: (gcode_sent_hook)
-  - When the plugin notices a `T#` command we set the tool internally, so it can be used to
+  - When the plugin notices a `T#` command it sets the tool internally, so it can be used to
     display. This is to support multicolor printing. This trigger is also used to show unloading.
 
-We listen to printer responses and do some substring matching. This is done to identify filament
-events and printer notifications, so we can update the navbar: (gcode_received_hook)
+### MMU2 1.X.X
+
+It listens to printer responses and does some substring matching. This is done to identify filament
+events and printer notifications, so it can update the navbar: (gcode_received_hook)
   - `paused for user` - Used to show that the printer needs attention (either error or waiting for
     tool selection at printer).
   - `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
@@ -56,16 +60,16 @@ events and printer notifications, so we can update the navbar: (gcode_received_h
   - `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
   - `OO succeeded` - Used to show what filament is loaded.
 
-MMU2/3 3.X.X:
+### MMU2/3 3.X.X
 
-The MMU 3.x.x firmware communicates continuously with the printer. The printer sends the MMU
-Requests, and the MMU sends back Responses. The MMU's Responses start with the Request Letter and
-Data, so we just listen for the Responses.
+The MMU 3.X.X firmware communicates continuously with the printer. The printer sends the MMU
+requests, and the MMU sends back responses. The MMU's responses start with the request letter and
+data, so it just listens for the Responses.
 
-MMU 3.x.x responses come in this format:  
+MMU 3.X.X responses come in this format:  
 `MMU2:<(Request Letter)(Request Data) (Response Letter)(Response Data)`
   - `(Request Letter)` - A single letter code that represents a request sent from the printer to the MMU.
-    - We only listen for `T` - Tool, `L` - Load, `U` - Unload, `X` - Reset, `K` - Cut, and `E` - Eject.
+    - It only listens for `T` - Tool, `L` - Load, `U` - Unload, `X` - Reset, `K` - Cut, and `E` - Eject.
   - `(Request Data)` - Hexidecimal data that follows the Request Letter.
     - It's usually `0`, unless the request involves filament, in which case it is the filament number `[0-4]`.
   - `(Response Letter)` - A single letter code that represents a response from the MMU.
@@ -75,19 +79,18 @@ MMU 3.x.x responses come in this format:
     - The amount of data varies depending on the Request Letter and Response Letter.
     - We only use Response Data to decode `P` - Progress messages, and `E` - Error messages
 
-Several Regex strings are used to parse the MMU 3.x.x responses:
+Several Regex strings are used to parse the MMU 3.X.X responses:
   - `MMU2:<[TLUXKE]` - Generic Regex used to catch the responses with the Request Letters that are important.
   - `MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*` - Used to split the command into the four groups described above.
 
-Additionally, we also listen for these other lines:
+Additionally, it also listens for these lines:
   - `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the
     MMU fails at auto-retrying after an Error.
-  - `MMU2:Heater cooldown pending` - The same as above. Might be unecessary, but I included both
-    just in case.
-  - `LCD status changed` - If the printer is paused, this tells us that the pause is probably over.
+  - `MMU2:Heater cooldown pending` - The same as above. Might be unnecessary, but included just in case.
+  - `LCD status changed` - If the printer was paused, this indicates that the pause is probably over.
 
-For all instances of where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
-look at function `_timeout_prompt` where we handle unpausing the printer after the timer and either
+For all instances where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
+look at function `_timeout_prompt` where it handles unpausing the printer after the timer and either
 sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings are set.
 
 ## Known Bugs
@@ -115,9 +118,9 @@ Here is a list of states used internally. These will be the `state` value in eve
 - `PAUSED_USER` - Printer is awaiting user input OR filament dialog is present.
 - `ATTENTION` - Printer needs user attention, could be MMU error or printer prompt (like new
   software version available).
-- `LOADING_MMU` - MMU is preloading filiment to the MMU (not to nozzle)
-- `CUTTING` - MMU is cutting the filament
-- `EJECTING` - MMU is ejecting the filament
+- `LOADING_MMU` - MMU is preloading filiment to the MMU (not to nozzle).
+- `CUTTING` - MMU is cutting the filament.
+- `EJECTING` - MMU is ejecting the filament.
 
 ### Errors
 
