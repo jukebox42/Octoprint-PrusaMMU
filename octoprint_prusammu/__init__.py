@@ -22,8 +22,8 @@ TAG_PREFIX = "prusaMMUPlugin:"
 TIMEOUT_TAG = "{}timeout".format(TAG_PREFIX)
 FILAMENT_SOURCE_DEFAULT = [
   dict(name="Prusa MMU", id=PLUGIN_NAME),
-  # dict(name="GCode", id="gcode"),
 ]
+TOOL_REGEX = r"^T(\d)"
 
 
 class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
@@ -49,6 +49,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       defaultFilament=-1,
       filamentSource=PLUGIN_NAME,
       filamentSources=[],
+      filamentMap=[],
+      useFilamentMap=False,
     )
 
   # ======== Startup ========
@@ -175,6 +177,17 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
+    # handle tool remap if enabled
+    if self.config[SettingsKeys.USE_FILAMENT_MAP] and search(TOOL_REGEX, cmd):
+      try:
+        tool = int(search(TOOL_REGEX, cmd).group(1))
+        new_tool = int(self.config[SettingsKeys.FILAMENT_MAP][tool]["id"])
+        self._log("gcode_queuing_hook_T# command: {} -> T{}".format(cmd, new_tool), debug=True)
+        return [("T{}".format(new_tool),),]
+      except Exception as e:
+        self._log("gcode_queuing_hook_T# ERROR command: {}, {}".format(cmd, str(e)), debug=True)
+        return #passthrough
+
     # only react to tool change commands and ignore everything if they dont want the dialog
     if not cmd.startswith("Tx") and not cmd.startswith("M109"):
       return # passthrough
@@ -370,7 +383,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     # Catch when the gcode sends a tool number, this happens when it's set to print in multi
     try:
-      x = search(r"T(\d)", cmd)
+      x = search(TOOL_REGEX, cmd)
       tool = x.group(1)
 
       # This indicates the tool was already loaded and we tried to load it again. The printer should
@@ -494,13 +507,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         dict(name="", color="", enabled=True, id=4),
         dict(name="", color="", enabled=True, id=5),
       ],
-      gcodeFilament=[
-        dict(name="", color="", id=1),
-        dict(name="", color="", id=2),
-        dict(name="", color="", id=3),
-        dict(name="", color="", id=4),
-        dict(name="", color="", id=5),
-      ],
+      filamentMap=[dict(id=0), dict(id=1), dict(id=2), dict(id=3), dict(id=4)],
+      useFilamentMap=False,
     )
 
   def on_settings_save(self, data):
@@ -514,11 +522,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         data[SettingsKeys.TIMEOUT] = DEFAULT_TIMEOUT
     except:
       data[SettingsKeys.TIMEOUT] = DEFAULT_TIMEOUT
-
-    # Always remember gcode filament, we dont care if it's stale it'll be refreshed on load
-    # TODO: load this data on print load or something. i dunno good luck.
-    if SettingsKeys.GCODE_FILAMENT not in data:
-      data[SettingsKeys.GCODE_FILAMENT] = self._settings.get([SettingsKeys.GCODE_FILAMENT])
 
     self._log("on_settings_save", debug=True)
 
@@ -543,6 +546,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       SettingsKeys.DISPLAY_ACTIVE_FILAMENT])
     self.config[SettingsKeys.FILAMENT_SOURCE] = self._settings.get([SettingsKeys.FILAMENT_SOURCE])
     self.config[SettingsKeys.FILAMENT_SOURCES] = self._settings.get([SettingsKeys.FILAMENT_SOURCES])
+    self.config[SettingsKeys.USE_FILAMENT_MAP] = self._settings.get_boolean([
+      SettingsKeys.USE_FILAMENT_MAP])
+    self.config[SettingsKeys.FILAMENT_MAP] = self._settings.get([SettingsKeys.FILAMENT_MAP])
 
   # ======== SoftwareUpdatePlugin ========
   # https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html

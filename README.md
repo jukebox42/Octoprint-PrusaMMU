@@ -20,6 +20,7 @@ or manually by selecting the latest zip:
 - Displays an error popup when the MMU throws an error (Only when running 3.0.0+)
 - Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
   and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
+- Allows remapping of tools to other tools.
 
 ## Screenshots
 
@@ -45,6 +46,8 @@ The command interactions are as follows:
   - `M109`: When the GCODE would send an `M109` (Wait for Hotend Temperature) and the user has
     selected a filament it sends both the `M109` and `T#` (like `T2`), otherwise it just sends the
     `M109`.
+  - `T#`: If the filament remap is enabled it will intercept a `T#` command and alter the number to
+    match the one provided in settings.
 - After sent: (gcode_sent_hook)
   - When the plugin notices a `T#` command it sets the tool internally, so it can be used to
     display. This is to support multicolor printing. This trigger is also used to show unloading.
@@ -53,12 +56,12 @@ The command interactions are as follows:
 
 It listens to printer responses and does some substring matching. This is done to identify filament
 events and printer notifications, so it can update the navbar: (gcode_received_hook)
-  - `paused for user` - Used to show that the printer needs attention (either error or waiting for
-    tool selection at printer).
-  - `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
-  - `MMU - ENABLED` / `MMU starts responding` - Used to show printer is "OK".
-  - `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
-  - `OO succeeded` - Used to show what filament is loaded.
+- `paused for user` - Used to show that the printer needs attention (either error or waiting for
+  tool selection at printer).
+- `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
+- `MMU - ENABLED` / `MMU starts responding` - Used to show printer is "OK".
+- `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
+- `OO succeeded` - Used to show what filament is loaded.
 
 ### MMU2/3 3.X.X
 
@@ -66,28 +69,28 @@ The MMU 3.X.X firmware communicates continuously with the printer. The printer s
 requests, and the MMU sends back responses. The MMU's responses start with the request letter and
 data, so it just listens for the Responses.
 
-MMU 3.X.X responses come in this format:  
+MMU 3.X.X responses come in this format:
 `MMU2:<(Request Letter)(Request Data) (Response Letter)(Response Data)`
-  - `(Request Letter)` - A single letter code that represents a request sent from the printer to the MMU.
-    - It only listens for `T` - Tool, `L` - Load, `U` - Unload, `X` - Reset, `K` - Cut, and `E` - Eject.
-  - `(Request Data)` - Hexidecimal data that follows the Request Letter.
-    - It's usually `0`, unless the request involves filament, in which case it is the filament number `[0-4]`.
-  - `(Response Letter)` - A single letter code that represents a response from the MMU.
-    - Possible responses are `P` - Processing, `E` - Error, `F` - Finished, `A` - Accepted,
-      `R` - Rejected, and `B` - Button.
-  - `(Response Data)` - Hexidecimal data that follows the Response Letter.
-    - The amount of data varies depending on the Request Letter and Response Letter.
-    - We only use Response Data to decode `P` - Progress messages, and `E` - Error messages
+- `(Request Letter)` - A single letter code that represents a request sent from the printer to the MMU.
+  - It only listens for `T` - Tool, `L` - Load, `U` - Unload, `X` - Reset, `K` - Cut, and `E` - Eject.
+- `(Request Data)` - Hexidecimal data that follows the Request Letter.
+  - It's usually `0`, unless the request involves filament, in which case it is the filament number `[0-4]`.
+- `(Response Letter)` - A single letter code that represents a response from the MMU.
+  - Possible responses are `P` - Processing, `E` - Error, `F` - Finished, `A` - Accepted,
+    `R` - Rejected, and `B` - Button.
+- `(Response Data)` - Hexidecimal data that follows the Response Letter.
+  - The amount of data varies depending on the Request Letter and Response Letter.
+  - We only use Response Data to decode `P` - Progress messages, and `E` - Error messages
 
 Several Regex strings are used to parse the MMU 3.X.X responses:
-  - `MMU2:<[TLUXKE]` - Generic Regex used to catch the responses with the Request Letters that are important.
-  - `MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*` - Used to split the command into the four groups described above.
+- `MMU2:<[TLUXKE]` - Generic Regex used to catch the responses with the Request Letters that are important.
+- `MMU2:<([TLUXKE])(.*) ([PEFARB])(.*)\*` - Used to split the command into the four groups described above.
 
 Additionally, it also listens for these lines:
-  - `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the
-    MMU fails at auto-retrying after an Error.
-  - `MMU2:Heater cooldown pending` - The same as above. Might be unnecessary, but included just in case.
-  - `LCD status changed` - If the printer was paused, this indicates that the pause is probably over.
+- `MMU2:Saving and parking` - Used to detect when the printer is waiting for user input after the
+  MMU fails at auto-retrying after an Error.
+- `MMU2:Heater cooldown pending` - The same as above. Might be unnecessary, but included just in case.
+- `LCD status changed` - If the printer was paused, this indicates that the pause is probably over.
 
 For all instances where command manipulation happens see `__init__.py` for `Gcode Hooks`. Also
 look at function `_timeout_prompt` where it handles unpausing the printer after the timer and either
@@ -255,14 +258,14 @@ If you too would like to add your filament/spool manager as a valid source for t
 to update the following areas:
 
 - `__init__.py`
-    - Update `on_after_startup()` to detect your plugin.
+  - Update `on_after_startup()` to detect your plugin.
 - `templates/prusammu_settings.jinja2`
-    - Add a link to your plugin in the helptext of `Filament Label Source`.
-    - Add an `alert` box identifying how filament is set in your plugin.
+  - Add a link to your plugin in the helptext of `Filament Label Source`.
+  - Add an `alert` box identifying how filament is set in your plugin.
 - `static/prusammu.js`
-    - Set your plugin as a dependency AND optional for `PrusaMMU2ViewModel` (bottom of file) 
-    - Add your plugin in the `self.filamentSources` object.
-    - Update the `getFilamentList()` function to call your filament/spool function. This will require
+  - Set your plugin as a dependency AND optional for `PrusaMMU2ViewModel` (bottom of file) 
+  - Add your plugin in the `self.filamentSources` object.
+  - Update the `getFilamentList()` function to call your filament/spool function. This will require
     your plugin to expose a javascript function the returns a list of filament and what tool they
     represent.
 

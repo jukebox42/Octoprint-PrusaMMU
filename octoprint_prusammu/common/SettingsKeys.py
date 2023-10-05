@@ -13,4 +13,5 @@ class SettingsKeys():
   FILAMENT_SOURCE="filamentSource"
   FILAMENT_SOURCES="filamentSources"
   FILAMENT="filament"
-  GCODE_FILAMENT="gcodeFilament"
+  FILAMENT_MAP="filamentMap"
+  USE_FILAMENT_MAP="useFilamentMap"

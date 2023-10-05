@@ -379,7 +379,7 @@ $(() => {
         title: `Prusa MMU: ${mmuError.title} (#${mmuError.code})`,
         text: `<p>${mmuError.text}</p>` +
               `<p><a target="_blank" href="${mmuError.url}">${mmuError.url}</a></p>`,
-        type: "warning",
+        type: "error",
         hide: false,
       });
     };
@@ -585,18 +585,6 @@ $(() => {
         } catch(e) {
           console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolManager failed.", e);
         }
-      } else if (self.settings.filamentSource() === "gcode") {
-        filament = self.settings.gcodeFilament().map(f => {
-          return {
-            enabled: true,
-            id: parseInt(f.id(), 10),
-            index: parseInt(f.id(), 10) - 1,
-            name: f.name(),
-            type: "",
-            color: f.color(),
-          };
-        });
-        log("getFilament gcode", filament);
       }
 
       // Catchall if we got zero back, default to showing something.
