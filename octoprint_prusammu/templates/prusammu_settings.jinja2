@@ -1,7 +1,7 @@
 <h2>{{ _("Prusa MMU") }}</h2>
 <div id="prusammu_error_zone" class="hide">
   <div class="alert alert-block">
-    <p><strong><span id="prusammu_error_title">TITLE</span> (#<span id="prusammu_error_code">CODE</span>)</strong></p>
+    <p><i class="fas fa-warning"></i> <strong><span id="prusammu_error_title">TITLE</span> (#<span id="prusammu_error_code">CODE</span>)</strong></p>
     <p id="prusammu_error_text"></p>
     <p><a id="prusammu_error_url" href="#" target="_blank">URL</a></p>
   </div>
@@ -35,10 +35,6 @@
       <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'filamentManager'">
         <p><strong>Filament Manager:</strong><br /> {{ _("To manage filament use the Filament Manager section in the left sidebar.") }}</p>
         <p>{{ _("Note: FilamentManager does not support color so no color will be shown.") }}</p>
-      </div>
-
-      <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'gcode'">
-        <p><strong>GCode:</strong><br /> {{ _("Filament names and colors will be extracted from the print file when available.") }}</p>
       </div>
     </div>
   </div>
@@ -137,14 +133,14 @@
         <a href="#" class="muted" data-bind="
           toggleContent: {
             class: 'fa-caret-right fa-caret-down',
-            container: '#settings_plugin_prusammu .hide'
+            container: '#settings_plugin_prusammu #prusammu_advanced'
           }
         ">
           <i class="fas fa-caret-right"></i> {{ _("Advanced options") }}
         </a>
       </small>
     </div>
-    <div class="hide">
+    <div id="prusammu_advanced" class="hide">
       <h3>{{ _("Advanced") }}</h3>
 
       <div class="control-group">
@@ -153,7 +149,7 @@
             <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
             {{ _("Index at zero") }}
           </label>
-          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual gcode refrence them as 0-4.") }}</span>
+          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual GCode refrence them as 0-4.") }}</span>
         </div>
       </div>
 
@@ -164,6 +160,53 @@
             {{ _("Classic color picker") }}
           </label>
           <span class="help-block">{{ _("Check to revert back to the classic color picker instead of the new one.") }}</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.useFilamentMap" />
+            {{ _("Remap tool commands") }}
+          </label>
+          <span class="help-block">{{ _("Check to have prusammu intercept tool commands and change the tool ID to the mapped one.") }}</span>
+        </div>
+      </div>
+
+      <div data-bind="visible: settings.plugins.prusammu.useFilamentMap()">
+        <div class="control-group">
+          <div class="controls">
+            <div class="alert alert-block">
+              <p><i class="fas fa-warning"></i> <strong>IMPORTANT: READ BEFORE USING</strong> <i class="fas fa-warning"></i></p>
+              <p>This feature will <strong>ONLY</strong> tell the MMU what filament to load when it sees a specific T# command. It <strong>WILL NOT</strong> make temperature decisions, the printer will follow the temperatures defined in the GCode of the print regardless of what filament is being loaded. Make sure you are always replacing the filament with the same type (like PLA -> PLA, PETG -> PETG, etc) as defined in the GCode. So don't take a GCode sliced for PLA filament and map it to a tool using PETG, it will use the temperature for the PLA! This setting is only used on GCode sliced in multi mode and will be ignored for single mode prints.</p>
+              
+              <p>Use at your own risk.</p>
+            </div>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="controls">
+            <div data-bind="foreach: settings.plugins.prusammu.filamentMap">
+              <div class="control-group">
+                <label class="control-label"><strong data-bind="text: 'Tool ' + ($index() + ($parent.settings.plugins.prusammu.indexAtZero() ? 0 : 1))"></strong></label>
+                <div class="controls">
+                  <i class="fas fa-long-arrow-right"></i> <select data-bind="
+                    options: $parent.settings.plugins.prusammu.filament,
+                    optionsText: function(fill) {
+                      if($parent.settings.plugins.prusammu.filamentSource() == 'prusammu') {
+                        return 'Tool ' + ($parent.settings.plugins.prusammu.indexAtZero() ? fill.id() - 1 : fill.id()) + ': ' + fill.name()
+                      }
+                      return 'Tool ' + ($parent.settings.plugins.prusammu.indexAtZero() ? fill.id() - 1 : fill.id())
+                    },
+                    optionsValue: function(fill) {
+                      return fill.id() - 1
+                    },
+                    value: $data.id
+                  "></select>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
