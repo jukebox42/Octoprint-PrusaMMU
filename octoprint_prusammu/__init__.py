@@ -43,6 +43,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     # Local Settings Config
     self.config = dict(
+      debug=False,
       timeout=DEFAULT_TIMEOUT,
       useDefaultFilament=False,
       displayActiveFilament=False,
@@ -576,20 +577,25 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== Misc ========
 
   def _log(self, msg, obj=None, debug=False):
-    if debug:
-      if self.config[SettingsKeys.DEBUG]:
-        if obj is not None:
-          msg = "{} {}".format(msg, dumps(obj))
-        self._logger.debug(msg)
-        self._plugin_manager.send_plugin_message(
-          self._identifier,
-          dict(
-            action="debug",
-            msg=msg,
-          )
+    try:
+      if not debug:
+        return self._logger.info(msg)
+      
+      if SettingsKeys.DEBUG not in self.config or not self.config[SettingsKeys.DEBUG]:
+        return
+      
+      if obj is not None:
+        msg = "{} {}".format(msg, dumps(obj))
+      self._logger.debug(msg)
+      self._plugin_manager.send_plugin_message(
+        self._identifier,
+        dict(
+          action="debug",
+          msg=msg,
         )
-    else:
-      self._logger.info(msg)
+      )
+    except:
+      pass
 
 
 __plugin_name__ = "Prusa MMU"

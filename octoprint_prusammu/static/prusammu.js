@@ -375,13 +375,15 @@ $(() => {
      * @param {object} mmuError - The error object
      */
     const showErrorPopupNotification = (mmuError) => {
-      new PNotify({
+      // TODO: Disabled the error notification for now. We need to handle not spamming the user on retry
+      //       Maybe we dont show errors that are retried until the final try?
+      /*new PNotify({
         title: `Prusa MMU: ${mmuError.title} (#${mmuError.code})`,
         text: `<p>${mmuError.text}</p>` +
               `<p><a target="_blank" href="${mmuError.url}">${mmuError.url}</a></p>`,
         type: "error",
         hide: false,
-      });
+      });*/
     };
 
     /* =============================
