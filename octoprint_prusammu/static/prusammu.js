@@ -369,21 +369,35 @@ $(() => {
       }, 1000 * self.filamentRetryCount);
     };
 
+    // A hacky way to avoid spamming the user with errors.
+    let _notifyEle = undefined;
+
     /**
      * When we get an error, show a popup as well with the link.
+     * 
+     * This function will rewrite the error the user sees if a new error pops in and they already
+     * have one from us. users only really need the last error.
      * 
      * @param {object} mmuError - The error object
      */
     const showErrorPopupNotification = (mmuError) => {
-      // TODO: Disabled the error notification for now. We need to handle not spamming the user on retry
-      //       Maybe we dont show errors that are retried until the final try?
-      /*new PNotify({
-        title: `Prusa MMU: ${mmuError.title} (#${mmuError.code})`,
-        text: `<p>${mmuError.text}</p>` +
-              `<p><a target="_blank" href="${mmuError.url}">${mmuError.url}</a></p>`,
-        type: "error",
-        hide: false,
-      });*/
+      const title = `Prusa MMU: ${mmuError.title} (#${mmuError.code})`;
+      const text = `<p>${mmuError.text}</p>` +
+                   `<p><a target="_blank" href="${mmuError.url}">${mmuError.url}</a></p>`;
+      if (!_notifyEle) {
+        _notifyEle = new PNotify({ title, text, type: "error", hide: false });
+        return;
+      }
+      // Doesn't do anything, for house keeping.
+      _notifyEle.options.title = title;
+      _notifyEle.options.text = text;
+      // Actually sets the values.
+      _notifyEle.title_container.text(title);
+      _notifyEle.text_container.html(text);
+      // If they had closed it show it again.
+      if (_notifyEle.state !== "open") {
+        _notifyEle.open();
+      }
     };
 
     /* =============================
