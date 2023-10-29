@@ -33,7 +33,7 @@ const getMmuError = (code) => {
  * P.S. The printer firmware just gives a generic "More details online." description for most of these errors, to save memory, but we display the full info!
  */
 const MMU2MmuErrorStrings = {
-  // MECHANICAL
+  // MECHANICAL     XX1XX
   "8001": {
     code:"04101",
     title:"FINDA DIDNT TRIGGER",
@@ -306,7 +306,7 @@ const MMU2MmuErrorStrings = {
     id:"MCU_POWER_ERROR",
   },
 
-  // CONNECTIVITY
+  // CONNECTIVITY     XX4XX
 
   "802e": {
     code:"04401",
@@ -322,7 +322,7 @@ const MMU2MmuErrorStrings = {
     id:"COMMUNICATION_ERROR",
   },
 
-  // SYSTEM
+  // SYSTEM     XX5XX
 
   "8005": {
     code:"04501",
@@ -382,6 +382,8 @@ const MMU2MmuErrorStrings = {
     text:"M600 Filament Change. Load a new filament or eject the old one.",
     id:"FILAMENT_CHANGE",
   },
+
+  // UNKNOWN      XX9XX
 
   UNKNOWN: {
     code:"04900",
