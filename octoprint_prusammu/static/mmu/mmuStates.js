@@ -1,0 +1,16 @@
+/**
+ * MMU States. Meant to match MmuStates from common/Mmu.py
+ */
+const STATES = {
+  NOT_FOUND: "NOT_FOUND",
+  STARTING: "STARTING",
+  OK: "OK",
+  LOADED: "LOADED",
+  UNLOADING: "UNLOADING",
+  LOADING: "LOADING",
+  PAUSED_USER: "PAUSED_USER",
+  ATTENTION: "ATTENTION",
+  LOADING_MMU: "LOADING_MMU",
+  CUTTING: "CUTTING",
+  EJECTING: "EJECTING",
+};

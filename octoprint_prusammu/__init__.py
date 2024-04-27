@@ -92,7 +92,19 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def get_assets(self):
     return dict(
-      js=["mmuErrors.js", "mmuProgress.js", "prusammu.js", "colorPick.js"],
+      js=[
+        # MMU Helpers
+        "mmu/mmuErrors.js",
+        "mmu/mmuProgress.js",
+        "mmu/mmuStates.js",
+        "mmu/mmuResponses.js",
+        # Color Picker
+        "colorPick.js",
+        # Helper Functions
+        "helpers.js",
+        # Class
+        "prusammu.js",
+      ],
       css=["prusammu.css", "colorPick.css"],
     )
 
