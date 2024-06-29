@@ -3,3 +3,4 @@ build/
 Octoprint-PrusaMmu.zip
 Octoprint-PrusaMmu/
 alpha.txt
+*.egg-info

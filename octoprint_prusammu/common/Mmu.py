@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 
 class MmuStates():
+  DETECTED="DETECTED" # TODO to be added later in place of the starter OK
   NOT_FOUND="NOT_FOUND"
   STARTING="STARTING"
   OK="OK"
@@ -14,6 +15,8 @@ class MmuStates():
   LOADING_MMU="LOADING_MMU"
   CUTTING="CUTTING"
   EJECTING="EJECTING"
+  # TODO: Fix, only used for MK4 state tracking, should be accepted in js too.
+  UNLOADING_FINAL="UNLOADING_FINAL"
 
 
 class MmuKeys():
@@ -33,15 +36,24 @@ DEFAULT_MMU_STATE = dict(
   responseData="",
 )
 
-class MMU2Commands():
-  PAUSED_USER="paused for user"
-  START="MMU => 'start'"
-  NOT_RESPONDING="MMU not responding"
-  ENABLED="MMU - ENABLED"
-  STARTS_RESPONDING="MMU starts responding"
-  LOADING="MMU can_load"
-  UNLOADING_DONE="Unloading finished"
-  LOADED="OO succeeded"
+# The MK3.5/3.9/4 regressed in what was available. We only get the basic commands now.
+# https://github.com/prusa3d/Prusa-Firmware/blob/28502a2b6e9084c91152385c51f2e2a640095877/Firmware/mmu2_progress_converter.cpp#L8
+class MMU3MK4Commands():
+  START_MATCH="MACHINE_TYPE:Prusa-MK(3\.5|3\.9|4)"
+  # PARKING="MMU2:Saving and parking" # not sure i need this one
+  PAUSED_USER="MMU2:ERR Wait for User"
+  # NOT_RESPONDING=""
+  LOADING_FINDA="MMU2:Feeding to FINDA"
+  LOADING_EXTRUDER="MMU2:Feeding to extruder"
+  LOADING_FSENSOR="MMU2:Feeding to FSensor"
+  UNLOADING="MMU2:Unloading to FINDA"
+  ACTION_DONE="MMU2:Disengaging idler"
+  UNLOADING_FINAL="MMU2:Retract from FINDA"
+  ERROR="MMU2:Command Error"
+  ERROR_FILAMENT="MMU2:ERR Help filament"
+  ERROR_INTERNAL="MMU2:ERR Internal"
+  ERROR_TMC="MMU2:ERR TMC failed"
+  BUTTON="MMU2:Button"
 
 # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_protocol.h
 # The 3.0.0 software brings improved logging for the MMU. A response from the MMU would look like:

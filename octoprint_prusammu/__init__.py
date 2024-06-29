@@ -2,18 +2,21 @@
 from __future__ import absolute_import, unicode_literals
 from threading import Timer
 from json import dumps
-from flask import abort
+from flask import abort, jsonify
 from re import search
 
 import octoprint.plugin
 from octoprint.server import user_permission
 from octoprint.events import Events
 
-from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU2Commands, MMU3Codes, \
-  MMU3RequestCodes, MMU3ResponseCodes, DEFAULT_MMU_STATE
+from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU3Codes, \
+  MMU3RequestCodes, MMU3ResponseCodes, MMU3MK4Commands, DEFAULT_MMU_STATE
 from octoprint_prusammu.common.PluginEventKeys import PluginEventKeys
 from octoprint_prusammu.common.SettingsKeys import SettingsKeys
 from octoprint_prusammu.common.StateKeys import StateKeys, DEFAULT_STATE
+from octoprint_prusammu.common.GcodeProfile import DETECT_MMU, is_pause_line
+from octoprint_prusammu.common.PrusaProfile import PrusaProfile, detect_connection_profile
+
 
 # === Constants ===
 DEFAULT_TIMEOUT = 30
@@ -34,12 +37,19 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                      octoprint.plugin.SettingsPlugin):
 
   def __init__(self):
+    self.prusaVersion = None
+    # If the printer reports having an mmu (Only used with MK3.5+)
+    self.printerHasMmu = False
+    # Make sure we don't catch all the temp changes (Only used with MK3.5+)
+    self.firstTempSeen = False
+
     # Dialog Status Variables
     self.timer = None
     self.states = DEFAULT_STATE.copy()
 
     # MMU Status - Used to display MMU data in the navbar
     self.mmu = DEFAULT_MMU_STATE.copy()
+    self.lastMmuAction = ""
 
     # Local Settings Config
     self.config = dict(
@@ -122,9 +132,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return
 
     if command == "getmmu":
-      self._fire_event(PluginEventKeys.REFRESH_NAV)
-      return
-
+      return jsonify(self._fire_event(PluginEventKeys.REFRESH_NAV))
 
   # ======== Prompt ========
 
@@ -141,8 +149,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.config[SettingsKeys.DEFAULT_FILAMENT] > -1
     ):
       self.states[StateKeys.SELECTED_FILAMENT] = self.config[SettingsKeys.DEFAULT_FILAMENT]
-    else:
+    elif self.prusaVersion == PrusaProfile.MK3:
       self._printer.commands("Tx", tags={TIMEOUT_TAG})
+
     self._clean_up_prompt()
 
   def _done_prompt(self, command, tags=set()):
@@ -172,9 +181,21 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       )
     )
 
+  # ======== Printer Firmware Hooks ========
+  # https://docs.octoprint.org/en/master/plugins/hooks.html#firmware_info_hook
+
+  def firmware_info_hook(self, comm_instance, firmware_name, firmware_data, *args, **kwargs):
+    # Figure out what Prusa version we are dealing with (defaults to MK3)
+    self.prusaVersion = detect_connection_profile(firmware_data["MACHINE_TYPE"])
+    self._log("firmware_info_hook: {}".format(self.prusaVersion),
+              obj=firmware_data, debug=True)
+    
+    # MK4: The MMU doesn't tell us it's ok so if the printer has one assume it is.
+    if self.prusaVersion != PrusaProfile.MK3 and self.printerHasMmu:
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+
   # ======== Gcode Hooks ========
   # https://docs.octoprint.org/en/master/plugins/hooks.html#octoprint-comm-protocol-gcode-phase
-  # Hint: these are linked at the bottom of the file __plugin_hooks__
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
@@ -187,17 +208,21 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return [("T{}".format(new_tool),),]
       except Exception as e:
         self._log("gcode_queuing_hook_T# ERROR command: {}, {}".format(cmd, str(e)), debug=True)
-        return #passthrough
+        return # passthrough
+      
+    # TODO: This blocks non MK3s from using the tool changer. Needs more testing.
+    if self.prusaVersion != PrusaProfile.MK3 and cmd.startswith("M1600 "):
+      return # passthrough
 
     # only react to tool change commands and ignore everything if they dont want the dialog
-    if not cmd.startswith("Tx") and not cmd.startswith("M109"):
+    if not cmd.startswith("Tx") and not cmd.startswith("M109 S"):
       return # passthrough
 
     # This line right here is how we handle not prompting the user again if they timeout
     if TIMEOUT_TAG in tags:
       return # passthrough
 
-    if cmd.startswith("M109"):
+    if is_pause_line(cmd, self.prusaVersion):
       self._log("gcode_queuing_hook_M109 command: {}".format(cmd), debug=True)
       if self.states[StateKeys.SELECTED_FILAMENT] is not None:
         tool_cmd = "T{}".format(self.states[StateKeys.SELECTED_FILAMENT])
@@ -205,12 +230,22 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                         dict(tool=self.states[StateKeys.SELECTED_FILAMENT]))
         self.states[StateKeys.SELECTED_FILAMENT] = None
         self._log("gcode_queuing_hook_M109 tool: {}".format(tool_cmd), debug=True)
-        return[(cmd,), (tool_cmd,)] # rewrite (append tool command)
-      else:
-        return # passthrough
+        # Rewrite and append the tool commands. The multi array adds the MMU commands for MK3.5+
+        return [(cmd,), (tool_cmd,)] # + get_additional_lines(self.prusaVersion)
+
+      return # passthrough
+
+    # Prompt to change filament for the MK4. We send it after the M104 (heat nozzle)
+    if self.prusaVersion != PrusaProfile.MK3 and not self.firstTempSeen and cmd.startswith("M104 S"):
+      self._log("gcode_queuing_hook {}".format(cmd), debug=True)
+      self.firstTempSeen = True
+      if self._printer.set_job_on_hold(True):
+        self._fire_event(PluginEventKeys.SHOW_PROMPT)
+      return # passthrough (do not silence or the extruder wont heat)
 
     # Prompt for filament change
     if cmd.startswith("Tx"):
+      self.firstTempSeen = True
       self._log("gcode_queuing_hook {}".format(cmd), debug=True)
       if self._printer.set_job_on_hold(True):
         self._fire_event(PluginEventKeys.SHOW_PROMPT)
@@ -218,44 +253,147 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     return # passthrough
 
-  # Listen for MMU events and update the nav to reflect it
-  def gcode_received_hook(self, comm, line, *args, **kwargs):
-    # MMU2 1.0.0
-    if MMU2Commands.PAUSED_USER in line:
+  def mk4_gcode_received(self, line):
+    # The MK4 is less verbose. To try and fill that gap we're faking the response and responseData
+    # to try and match the information we'd expect to get. Some day I hope prusa gives us back
+    # the data we had before.
+
+    if "MMU2:" in line:
+      if self.mmu[MmuKeys.LAST_LINE] == line:
+        return
+      self.mmu[MmuKeys.LAST_LINE] = line
+
+    # Paused
+    if MMU3MK4Commands.PAUSED_USER in line:
+      self.lastMmuAction = MmuStates.PAUSED_USER
       # The printer will spam pause messages, so ignore them if we're already paused
       if self.mmu[MmuKeys.STATE] == MmuStates.PAUSED_USER:
-        return line
+        return
       # The printer will send pause messages directly after an attention, and attention is more
       # important, so ignore them
       elif self.mmu[MmuKeys.STATE] == MmuStates.ATTENTION:
-        return line
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.PAUSED_USER))
-      return line
-    elif MMU2Commands.START in line:
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.STARTING))
-      return line
-    elif MMU2Commands.NOT_RESPONDING in line:
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
-      return line
-    elif MMU2Commands.ENABLED in line or MMU2Commands.STARTS_RESPONDING in line:
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
-      return line
-    elif MMU2Commands.LOADING in line or MMU2Commands.UNLOADING_DONE in line:
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADING))
-      return line
-    elif MMU2Commands.LOADED in line:
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.LOADED))
-      return line
+        return
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.PAUSED_USER, response=MMU3ResponseCodes.ERROR,
+                            responseData="c"))
+      return
 
+    # Errors
+    if MMU3MK4Commands.ERROR in line:
+      # TODO: This is a more generic error. we might be able to get something out of the bytes sent.
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.ATTENTION, response=MMU3ResponseCodes.ERROR,
+                            responseData="c"))
+      return
+    if MMU3MK4Commands.ERROR_FILAMENT in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.ATTENTION, response=MMU3ResponseCodes.ERROR,
+                            responseData="f"))
+      return
+    if MMU3MK4Commands.ERROR_INTERNAL in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.ATTENTION, response=MMU3ResponseCodes.ERROR,
+                            responseData="d"))
+      return
+    if MMU3MK4Commands.ERROR_TMC in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.ATTENTION, response=MMU3ResponseCodes.ERROR,
+                            responseData="e"))
+      return
+
+    # Loading
+    if MMU3MK4Commands.LOADING_FINDA in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.LOADING, tool=self.mmu[MmuKeys.TOOL],
+                            response=MMU3ResponseCodes.PROCESSING, responseData="5"))
+      self.lastMmuAction = MmuStates.LOADING
+      return
+    if MMU3MK4Commands.LOADING_EXTRUDER in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.LOADING, tool=self.mmu[MmuKeys.TOOL],
+                            response=MMU3ResponseCodes.PROCESSING, responseData="6"))
+      self.lastMmuAction = MmuStates.LOADING
+      return
+    if MMU3MK4Commands.LOADING_FSENSOR in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.LOADING, tool=self.mmu[MmuKeys.TOOL],
+                            response=MMU3ResponseCodes.PROCESSING, responseData="7"))
+      self.lastMmuAction = MmuStates.LOADING
+      return
+
+    # Loaded, clear previous tool
+    if (
+      MMU3MK4Commands.ACTION_DONE in line and
+      self.lastMmuAction == MmuStates.LOADING
+    ):
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.LOADED, previousTool="",
+                            response=MMU3ResponseCodes.FINISHED, responseData="2"))
+      self.lastMmuAction = MmuStates.LOADED
+      return
+
+    # Unloading
+    if MMU3MK4Commands.UNLOADING in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.UNLOADING, response=MMU3ResponseCodes.PROCESSING,
+                            responseData="3"))
+      self.lastMmuAction = MmuStates.UNLOADING
+      return
+
+    # Unloading Final
+    if MMU3MK4Commands.UNLOADING_FINAL in line:
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.UNLOADING, response=MMU3ResponseCodes.PROCESSING,
+                            responseData="3"))
+      self.lastMmuAction = MmuStates.UNLOADING_FINAL
+      return
+
+    # Unloaded
+    if (
+      MMU3MK4Commands.ACTION_DONE in line and
+      self.lastMmuAction == MmuStates.UNLOADING
+    ):
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.OK, response=MMU3ResponseCodes.FINISHED,
+                            responseData="2"))
+      self.lastMmuAction = MmuStates.OK
+      return
+    
+    # Unloaded Final
+    if (
+      MMU3MK4Commands.ACTION_DONE in line and
+      self.lastMmuAction == MmuStates.UNLOADING_FINAL
+    ):
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.OK, response=MMU3ResponseCodes.FINISHED,
+                            responseData="2"))
+      self.lastMmuAction = MmuStates.OK
+      return
+
+    # Starting
+    if search(MMU3MK4Commands.START_MATCH, line):
+      # We fire them back to back because we no longer get a ready message from the MMU
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.STARTING, response=MMU3ResponseCodes.FINISHED,
+                            responseData="0"))
+      self._fire_event(PluginEventKeys.MMU_CHANGE,
+                       dict(state=MmuStates.OK, response=MMU3ResponseCodes.FINISHED,
+                            responseData="0"))
+      self.lastMmuAction == MmuStates.OK
+      return
+
+    return
+
+  def mk3_gcode_received(self, line):
     # MMU2 3.0.0
     # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_progress_converter.cpp#L8
     # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_protocol_logic.cpp
     # General REGEX to catch all important MMU commands
-    elif search(MMU3Codes.GENERAL_MATCH, line):
+    if search(MMU3Codes.GENERAL_MATCH, line):
       # If this line is the same as the previously seen one, ignore it and return immediately,
       # otherwise it's new, so continue
       if self.mmu[MmuKeys.LAST_LINE] == line:
-        return line
+        return
       self.mmu[MmuKeys.LAST_LINE] = line
       # Search the line. This creates 4 matched groups. 
       # Group 1 is a single letter request code. Group 2 is the request data in hexidecimal
@@ -276,7 +414,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         self._fire_event(PluginEventKeys.MMU_CHANGE,
                          dict(state=MmuStates.ATTENTION, response=matchedCommand.group(3),
                               responseData=matchedCommand.group(4)))
-        return line
+        return
 
       # Load filament to nozzle
       if matchedCommand.group(1) == MMU3RequestCodes.TOOL:
@@ -292,7 +430,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                            dict(state=MmuStates.LOADING, tool=matchedCommand.group(2),
                                 response=matchedCommand.group(3),
                                 responseData=matchedCommand.group(4)))
-        return line
+        return
       # Preload filament to mmu
       elif matchedCommand.group(1) == MMU3RequestCodes.LOAD:
         # Preload Finished, Printer is now idle
@@ -306,7 +444,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                            dict(state=MmuStates.LOADING_MMU, tool=matchedCommand.group(2),
                                 response=matchedCommand.group(3),
                                 responseData=matchedCommand.group(4)))
-        return line
+        return
       # Unload Filament from Nozzle NOTE: Doesn't give us any tool info, so rely on T# commands to
       # give us current and previous tool info
       elif matchedCommand.group(1) == MMU3RequestCodes.UNLOAD:
@@ -320,13 +458,13 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
           self._fire_event(PluginEventKeys.MMU_CHANGE,
                            dict(state=MmuStates.UNLOADING, response=matchedCommand.group(3),
                                 responseData=matchedCommand.group(4)))
-        return line
+        return
       # Printer Reset, Shows up after power on
       elif matchedCommand.group(1) == MMU3RequestCodes.RESET:
         self._fire_event(PluginEventKeys.MMU_CHANGE,
                          dict(state=MmuStates.OK, response=matchedCommand.group(3),
                               responseData=matchedCommand.group(4)))
-        return line
+        return
       # Cut Filament
       elif matchedCommand.group(1) == MMU3RequestCodes.CUT:
         # Cutting finished, Printer is now idle
@@ -340,7 +478,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                            dict(state=MmuStates.CUTTING, tool=matchedCommand.group(2),
                                 response=matchedCommand.group(3),
                                 responseData=matchedCommand.group(4)))
-        return line
+        return
       # Eject Filament
       elif matchedCommand.group(1) == MMU3RequestCodes.EJECT:
         # Ejecting finished, Printer is now idle
@@ -354,7 +492,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                            dict(state=MmuStates.EJECTING, tool=matchedCommand.group(2),
                                 response=matchedCommand.group(3),
                                 responseData=matchedCommand.group(4)))
-        return line
+        return
 
     # Catch other MMU3 lines not caught by regex
     # ATTENTION. Some errors spam one of these lines, so deduplicate them here. It's possible some
@@ -370,6 +508,30 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       # If detected, blank out LAST_LINE. The next mmu response in the log will trigger again and
       # change the state away from PAUSED_USER
       self.mmu[MmuKeys.LAST_LINE] = ""
+
+    return
+
+  # Listen for MMU events and update the nav to reflect it
+  def gcode_received_hook(self, comm, line, *args, **kwargs):
+    # Detect if we have an MMU. This gets sent BEFORE the firmware info is sent.
+    if self.prusaVersion is None and not self.printerHasMmu and line.startswith(DETECT_MMU):
+      self.printerHasMmu = True
+      self._log("gcode_received_hook MMU: {}".format(line), debug=True)
+      # For the MK4, just say it's ok since we don't get an OK anymore.
+      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
+      return line
+    
+    # Until we have a version there's no point in trying to parse
+    if self.prusaVersion is None:
+      return line
+
+    # MK3.5/3.9/4
+    if self.prusaVersion != PrusaProfile.MK3:
+      self.mk4_gcode_received(line)
+      return line
+
+    # MK3
+    self.mk3_gcode_received(line)
 
     return line
 
@@ -387,23 +549,13 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       x = search(TOOL_REGEX, cmd)
       tool = x.group(1)
 
-      # This indicates the tool was already loaded and we tried to load it again. The printer should
-      # ignore this event so we will too. The nav should already represent this data anyways.
-      if self.mmu[MmuKeys.STATE] == MmuStates.LOADED and self.mmu[MmuKeys.TOOL] == tool:
-        return
+      # If the tool does not match the current tool then we're about to get an unload message from
+      # the printer so set the previous tool's value before we replace tool.
+      if self.mmu[MmuKeys.TOOL] != tool:
+        self.mmu[MmuKeys.PREV_TOOL] = self.mmu[MmuKeys.TOOL]
 
-      # Show unloading if there's already a tool loaded and it's not the same tool
-      if self.mmu[MmuKeys.STATE] == MmuStates.LOADED and self.mmu[MmuKeys.TOOL] != tool:
-        self._fire_event(PluginEventKeys.MMU_CHANGE,
-                        dict(state=MmuStates.UNLOADING,
-                             tool=tool,
-                             previousTool=self.mmu[MmuKeys.TOOL]))
-        return
-
-      # Otherwise assume it's a first time load. Set to loading, and blank out previousTool
-      self._fire_event(PluginEventKeys.MMU_CHANGE,
-                       dict(state=MmuStates.LOADING, tool=tool, previousTool=""))
-      self._log("gcode_sent_hook Tool: {} CMD: {}".format(tool, cmd), debug=True)
+      # Store the tool value on the tool. We're about to get a loading call.
+      self.mmu[MmuKeys.TOOL] = tool
     except:
       pass
 
@@ -419,6 +571,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     if payload is not None:
       newPayload.update(payload)
 
+    # Dedupe events
     if (
       self.mmu[MmuKeys.STATE] == newPayload[MmuKeys.STATE] and
       self.mmu[MmuKeys.TOOL] == newPayload[MmuKeys.TOOL] and
@@ -426,7 +579,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.mmu[MmuKeys.RESPONSE] == newPayload[MmuKeys.RESPONSE] and
       self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA]
     ):
-      return
+      return newPayload
     
     self.mmu = newPayload
 
@@ -434,6 +587,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # deduplication happens in on_event
     # self._log("_fire_event {} with".format(key), obj=payload, debug=True)
     self._event_bus.fire(key, payload=newPayload)
+
+    return newPayload
 
   def register_custom_events(*args, **kwargs):
     return [
@@ -468,11 +623,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self._show_prompt()
       return
 
-    # Handle disconenced event to set the mmu to Not Found (no printer...)
+    # Handle disconnected event to set the mmu to Not Found (no printer...)
     if event == "Disconnected":
       self._log("on_event {}".format(event), debug=True)
       # Reset the MMU
       self.mmu = DEFAULT_MMU_STATE.copy()
+      # Reset printer state
+      self.prusaVersion = None
+      self.printerHasMmu = False
+      self.firstTempSeen = False
       self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
 
     # Handle terminal states when printer is no longer printing to reset the MMU
@@ -484,6 +643,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self._log("on_event {}".format(event), debug=True)
       # Reset the MMU
       self.mmu = DEFAULT_MMU_STATE.copy()
+      self.printerHasMmu = False
+      self.firstTempSeen = False
       self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
 
   # ======== SettingsPlugin ========
@@ -605,6 +766,7 @@ __plugin_hooks__ = {
   "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.gcode_queuing_hook,
   "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received_hook,
   "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent_hook,
+  "octoprint.comm.protocol.firmware.info": __plugin_implementation__.firmware_info_hook,
   "octoprint.events.register_custom_events":  __plugin_implementation__.register_custom_events,
   "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
 }

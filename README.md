@@ -1,9 +1,11 @@
 # Octoprint-PrusaMMU
 
+Note: MK3.5/3.9/4 is not yet supported for single filament prints. Work in progress.
+
 **Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
 "MMU Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for Prusa printers with an MMU. Supports MMU firmware `1.X.X` and `3.X.X`.
+only works for Prusa printers with an MMU. Supports MMU firmware  `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -17,7 +19,7 @@ or manually by selecting the latest zip:
 - Displays MMU state in the navbar (configurable)
 - (Optional) Default to a filament if none are selected
 - On single color prints, shows a modal to select the filament within Octoprint
-- Displays an error popup when the MMU throws an error (Only when running 3.0.0+)
+- Displays an error popup when the MMU throws an error (Not supported by the MK4)
 - Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
   and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
 - Allows remapping of tools to other tools.
@@ -37,6 +39,8 @@ or manually by selecting the latest zip:
 This plugin does some minimal gcode manipulation. This is how it detects tool events and pause the
 print to provide the dialog.
 
+### MK3s MMU 3.X.X - Single Print
+
 The command interactions are as follows:
 - Before sent: (gcode_queuing_hook)
   - `Tx`: When the GCODE would send a `Tx` (tool change) it first triggers the modal and then does
@@ -52,18 +56,11 @@ The command interactions are as follows:
   - When the plugin notices a `T#` command it sets the tool internally, so it can be used to
     display. This is to support multicolor printing. This trigger is also used to show unloading.
 
-### MMU2 1.X.X
+### MK3.5/3.9/4 MMU 3.X.X - Single Print
 
-It listens to printer responses and does some substring matching. This is done to identify filament
-events and printer notifications, so it can update the navbar: (gcode_received_hook)
-- `paused for user` - Used to show that the printer needs attention (either error or waiting for
-  tool selection at printer).
-- `MMU not responding` -  Used to show that the printer needs attention because of an MMU failure.
-- `MMU - ENABLED` / `MMU starts responding` - Used to show printer is "OK".
-- `MMU can_load` / `Unloading finished` - Used to show the filament loading message.
-- `OO succeeded` - Used to show what filament is loaded.
+Unsupported, TBD. Prusa removed the single print profile which served a `Tx` we use to do the detection.
 
-### MMU2/3 3.X.X
+### MK3s MMU 3.X.X - MMU State Detection
 
 The MMU 3.X.X firmware communicates continuously with the printer. The printer sends the MMU
 requests, and the MMU sends back responses. The MMU's responses start with the request letter and
@@ -96,6 +93,23 @@ For all instances where command manipulation happens see `__init__.py` for `Gcod
 look at function `_timeout_prompt` where it handles unpausing the printer after the timer and either
 sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings are set.
 
+### MK3.5/3.9/4 MMU 3.X.X - MMU State Detection
+
+It listens to printer responses and does some substring matching. This is done to identify filament
+events and printer notifications, so it can update the navbar: (`gcode_received_hook`)
+- `MACHINE_TYPE:Prusa-MK(3\.5|3\.9|4)` - Used to detect if the printer is an MK3.5/3.9/4.
+- `MMU2:ERR Wait for User` - Paused for user. Used to show the printer needs attention.
+- `MMU2:Feeding to FINDA` - Indicates loading to the Finda.
+- `MMU2:Feeding to extruder` - Indicates loading to the Extruder.
+- `MMU2:Feeding to FSensor` - Indicates loading to the FSensor.
+- `MMU2:Unloading to FINDA` - Indicates filament is unloading.
+- `MMU2:Retract from FINDA` - Indicates the final unloading, the print is done.
+- `MMU2:Disengaging idler` - This indicates when a task completes (like loading/unloading)
+- `MMU2:Command Error` - Displays there's an MMU error. Error is generic and not parsed.
+- `MMU2:ERR Help filament` - Displays there's an MMU error. Error is generic and not parsed.
+- `MMU2:ERR Internal` - Displays there's an MMU error. Error is generic and not parsed.
+- `MMU2:ERR TMC failed` - Displays there's an MMU error. Error is generic and not parsed.
+
 ## Known Bugs
 
 1. In rare instances, the "waiting for user input" event can come in directly after a tool change is
@@ -124,10 +138,12 @@ Here is a list of states used internally. These will be the `state` value in eve
 - `LOADING_MMU` - MMU is preloading filiment to the MMU (not to nozzle).
 - `CUTTING` - MMU is cutting the filament.
 - `EJECTING` - MMU is ejecting the filament.
+- `UNLOADING_FINAL` - MMU is performing a final unload. This is only for the MK4 and replaced with a
+  `UNLOADING` when sent to the client. Used to do the final unload cleanup.
 
 ### Errors
 
-New when using MMU 3.0.0!
+New when using MK3s MMU 3.0.0! (Not available for MK4 users)
 
 When the MMU throws an error you'll see a command come across like `MMU2:<X0 E800d`. The `E`
 Response Letter represents there being an Error and the `800d` is the hex Response Data of the error.
@@ -185,6 +201,34 @@ Payload: `None`
 Used to force the UI to refresh it's MMU data (like on page refresh).
 
 Payload: `None`
+
+### API Endpoints
+
+This plugin makes use of `simpleApiCommand` for some instances to stay up to date. You can use these
+endpoints yourself if you want to get information about the MMU via a POST.
+
+`<octoprint server>/api/plugin/prusammu`
+
+#### `getmmu`
+
+Call to get the current state of the MMU.
+
+Request:
+```javascript
+{ "command": "getmmu" }
+```
+
+Response:
+```javascript
+{
+  lastLine: string
+  state: string
+  tool: int
+  previousTool: int
+  response: string
+  responseData: string
+}
+```
 
 ### Exposed Javascript Functions
 
@@ -331,6 +375,12 @@ Special thanks to:
 - [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.
 - [@Kevman323](https://github.com/Kevman323) for a significant revamp of the MMU 3.0.0 code,
   cleaning up error codes, and bringing in more data to the nav.
+- For help supporting the MK3.5/3.9/4:
+  - [@AaronVARC](https://github.com/AaronVARC)
+  - [@Anubis1971](https://github.com/Anubis1971)
+  - [@jshank](https://github.com/jshank)
+  - [@Kjubyte](https://github.com/Kjubyte)
+  - [@MysticGringo](https://github.com/MysticGringo)
 
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
