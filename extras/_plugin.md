@@ -45,6 +45,7 @@ compatibility:
   octoprint:
   - 1.8.0
   - 1.8.1
+  - 1.10.0
 
 ---
 

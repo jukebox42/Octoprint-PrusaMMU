@@ -53,3 +53,8 @@ Note: Make sure you don't send the *XX at the end of lines. Virtual printer lose
 
 # Load Finished (must be in loading unless using the last one)
 !!DEBUG:send MMU2:<T2 F0*
+
+======================================
+===== MK3.5/3.9/4 & MMU 2: 3.0.0 =====
+======================================
+

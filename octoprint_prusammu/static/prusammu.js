@@ -56,7 +56,7 @@ $(() => {
     self.isAdvancedDisplayMode = ko.observable(true);
     self.shouldShowNav = ko.observable(false);
 
-    self.navActionText = ko.observable("Not Found");
+    self.navActionText = ko.observable("Unknown");
     self.navActionIcon = ko.observable("fa-times");
 
     self.navToolText = ko.observable("");
@@ -81,7 +81,7 @@ $(() => {
      */
     const getNavActionText = (state, tool, filament, previous) => {
       if (state === "" || state === STATES.NOT_FOUND) {
-        return gettext("Not Found"); 
+        return gettext("Unknown"); 
       }
 
       switch (state) {
