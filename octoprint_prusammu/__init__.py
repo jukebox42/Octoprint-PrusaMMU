@@ -149,14 +149,25 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.config[SettingsKeys.DEFAULT_FILAMENT] > -1
     ):
       self.states[StateKeys.SELECTED_FILAMENT] = self.config[SettingsKeys.DEFAULT_FILAMENT]
-    elif self.prusaVersion == PrusaProfile.MK3:
+    
+    if self.prusaVersion == PrusaProfile.MK3:
       self._printer.commands("Tx", tags={TIMEOUT_TAG})
+    elif self.states[StateKeys.SELECTED_FILAMENT]:
+      self._enable_m863_mode(self.states[StateKeys.SELECTED_FILAMENT])
 
     self._clean_up_prompt()
 
   def _done_prompt(self, command, tags=set()):
     self._log("_done_prompt {}".format(command), debug=True)
+    # If we get a -1 then the user chose to skip
+    if str(command) == "-1":
+      return
     self.states[StateKeys.SELECTED_FILAMENT] = command
+
+    # MK4
+    if self.prusaVersion != PrusaProfile.MK3:
+      self._enable_m863_mode(command)
+
     self._clean_up_prompt()
 
   def _clean_up_prompt(self):
@@ -164,6 +175,21 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.states[StateKeys.ACTIVE] = False
     self._plugin_manager.send_plugin_message(self._identifier, dict(action="close"))
     self._printer.set_job_on_hold(False)
+
+  # ======== M863 Mode ========
+
+  def _enable_m863_mode(self, command):
+    self._log("_enable_m863_mode {}".format(command), debug=True)
+    self.states[StateKeys.SELECTED_FILAMENT] = command
+    self.printer.commands("M863 E1")
+    for x in range(0,4):
+      if self.config[SettingsKeys.DEFAULT_FILAMENT] != str(command):
+        self.printer.commands(
+          "M863 M P{} L{}".format(x, self.config[SettingsKeys.DEFAULT_FILAMENT]))
+
+  def _disable_m863_mode(self):
+    self._log("_disable_m863_mode", debug=True)
+    self.printer.commands("M863 E0")
 
   # ======== Nav Updater ========
 
@@ -211,7 +237,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return # passthrough
       
     # TODO: This blocks non MK3s from using the tool changer. Needs more testing.
-    if self.prusaVersion != PrusaProfile.MK3 and cmd.startswith("M1600 "):
+    if self.prusaVersion != PrusaProfile.MK3 and cmd.startswith("M1600"):
       return # passthrough
 
     # only react to tool change commands and ignore everything if they dont want the dialog
@@ -624,7 +650,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return
 
     # Handle disconnected event to set the mmu to Not Found (no printer...)
-    if event == "Disconnected":
+    if event == Events.DISCONNECTED:
       self._log("on_event {}".format(event), debug=True)
       # Reset the MMU
       self.mmu = DEFAULT_MMU_STATE.copy()
@@ -633,6 +659,16 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.printerHasMmu = False
       self.firstTempSeen = False
       self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
+      self._disable_m863_mode()
+      return
+
+    # Handle print started for MK4s, pause and show the prompt.
+    # if self.prusaVersion != PrusaProfile.MK3 and event == Events.PRINT_STARTED:
+    if event == Events.PRINT_STARTED:
+      self._log("on_event {}".format(event), debug=True)
+      self._disable_m863_mode()
+      if self._printer.set_job_on_hold(True):
+        self._fire_event(PluginEventKeys.SHOW_PROMPT)
 
     # Handle terminal states when printer is no longer printing to reset the MMU
     if (
@@ -646,6 +682,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.printerHasMmu = False
       self.firstTempSeen = False
       self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
+      self._disable_m863_mode()
 
   # ======== SettingsPlugin ========
 
