@@ -446,6 +446,9 @@ $(() => {
         selections[f.index] = drawSelectOption(f);
       });
 
+      // Add the skip option at the bottom.
+      selections[filament.length] = "Skip";
+
       const opts = {
         title: gettext("Prusa MMU"),
         message: gettext(`Select the filament spool: (From ${self.settings.filamentSource()})`),

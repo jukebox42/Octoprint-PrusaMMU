@@ -26,6 +26,7 @@ class MmuKeys():
   PREV_TOOL="previousTool"
   RESPONSE="response"
   RESPONSE_DATA="responseData"
+  PRUSA_VERSION="prusaVersion"
 
 DEFAULT_MMU_STATE = dict(
   state=MmuStates.NOT_FOUND,
@@ -34,6 +35,7 @@ DEFAULT_MMU_STATE = dict(
   previousTool="",
   response="",
   responseData="",
+  prusaVersion=None,
 )
 
 # The MK3.5/3.9/4 regressed in what was available. We only get the basic commands now.

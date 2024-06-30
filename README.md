@@ -58,7 +58,19 @@ The command interactions are as follows:
 
 ### MK3.5/3.9/4 MMU 3.X.X - Single Print
 
-Unsupported, TBD. Prusa removed the single print profile which served a `Tx` we use to do the detection.
+Note Prusa removed the single print profile which served a `Tx` we use to do the detection. We use
+something different for MK3.5+. <span style="color:red">**For MK3.5+ you cannot use single print
+profile. You MUST use use the MMU profile with a single filament, what you pick doesn't matter, we
+will overwrite the filament with the tool you choose.**</span>
+
+When a print is started, the print is immediately pause and the user is prompted to select a
+filament. The plugin then sends a `M863 E1` to enable tool remapping then for every tool a
+`M863 P# L#` is sent to map every tool to the chosen one. When the print ends, the plugin sends a
+`M863 E0` to disable tool remapping.
+
+*This does mean you will always get the prompt modal for every print, but you can click skip and
+have it preserve the default behavior. In a future release, I will try to read ahead and figure out
+if only one tool was used in the profile.*
 
 ### MK3s MMU 3.X.X - MMU State Detection
 
@@ -117,6 +129,8 @@ events and printer notifications, so it can update the navbar: (`gcode_received_
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
+1. MK3.5+, it's possible to get stuck in a state where the `M863` is not disabled, But every print
+   start will disable it to avoid unexpected behavior.
 
 ## Developer Zone
 
