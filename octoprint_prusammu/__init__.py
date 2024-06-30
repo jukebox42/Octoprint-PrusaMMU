@@ -178,15 +178,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _enable_m863_mode(self, command):
     self._log("_enable_m863_mode {}".format(command), debug=True)
     self.states[StateKeys.SELECTED_FILAMENT] = command
-    self.printer.commands("M863 E1")
+    self._printer.commands("M863 E1")
     for x in range(0,4):
       if self.config[SettingsKeys.DEFAULT_FILAMENT] != str(command):
-        self.printer.commands(
+        self._printer.commands(
           "M863 M P{} L{}".format(x, self.config[SettingsKeys.DEFAULT_FILAMENT]))
 
   def _disable_m863_mode(self):
     self._log("_disable_m863_mode", debug=True)
-    self.printer.commands("M863 E0")
+    self._printer.commands("M863 E0")
 
   # ======== Nav Updater ========
 
