@@ -226,6 +226,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # This line right here is how we handle not prompting the user again if they timeout
     if TIMEOUT_TAG in tags:
       return # passthrough
+    
+    # TODO: TEMP TO TEST REMOVE ME BEFORE YOU RELEASE!!!!!!!
+    return
 
     # handle tool remap if enabled
     if self.config[SettingsKeys.USE_FILAMENT_MAP] and search(TOOL_REGEX, cmd):
@@ -649,6 +652,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return
 
     # Handle print started for MK4s, pause and show the prompt.
+    # TODO: UNCOMMENT ME BEFORE YOU MERGE. THIS MAKES MK3s WORK
     # if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and event == Events.PRINT_STARTED:
     if event == Events.PRINT_STARTED:
       self._log("on_event {}".format(event), debug=True)
