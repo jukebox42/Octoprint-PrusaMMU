@@ -37,7 +37,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                      octoprint.plugin.SettingsPlugin):
 
   def __init__(self):
-    self.mmu[MmuKeys.PRUSA_VERSION] = None
     # If the printer reports having an mmu (Only used with MK3.5+)
     self.printerHasMmu = False
 
