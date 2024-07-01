@@ -39,6 +39,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def __init__(self):
     # If the printer reports having an mmu (Only used with MK3.5+)
     self.printerHasMmu = False
+    # Used for MK4 to retain the override.
+    self.filamentOverride = None
 
     # Dialog Status Variables
     self.timer = None
@@ -120,11 +122,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return abort(409, "No active prompt")
 
       choice = data["choice"]
-      if not isinstance(choice, int) or not choice < 5 or not choice >= 0:
+      if choice != "skip" or not isinstance(choice, int) or not choice < 5 or not choice >= 0:
         return abort(400, "{} is not a valid value for filament choice".format(choice+1))
 
       self._log("on_api_command T{}".format(choice), debug=True)
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
+      if choice != "skip":
+        self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
       self._done_prompt(choice)
       return
 
@@ -156,15 +159,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def _done_prompt(self, command, tags=set()):
     self._log("_done_prompt {}".format(command), debug=True)
-    # If we get a -1 then the user chose to skip
-    if str(command) == "-1":
+    # If we get a skip then the user chose to skip
+    if str(command) == "skip":
+      self._log("_done_prompt SKIP", debug=True)
       return
     self.states[StateKeys.SELECTED_FILAMENT] = command
 
-    # MK4
-    # TODO: UNCOMMENT ME BEFORE MERGE, USED TO TEST
-    # if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
-    self._enable_m863_mode(command)
+    # MK4: Enable filament rewrite
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+      self._enable_m863_mode(command)
 
     self._clean_up_prompt()
 
@@ -178,15 +181,17 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def _enable_m863_mode(self, command):
     self._log("_enable_m863_mode T{}".format(command), debug=True)
-    self._printer.commands("M863 E1")
-    for x in range(0,4):
+    self.filamentOverride = command
+    lines = ["M863 E1"]
+    for x in range(5):
       if str(x) != str(command):
-        line = "M863 M P{} L{}".format(x, command)
-        self._log("_enable_m863_mode Line: ".format(line), debug=True)
-        self._printer.commands(line)
+        lines.append("M863 M P{} L{}".format(x, command))
+    self._log("_enable_m863_mode", lines, debug=True)
+    self._printer.commands(lines)
 
   def _disable_m863_mode(self):
     self._log("_disable_m863_mode", debug=True)
+    self.filamentOverride = None
     self._printer.commands("M863 R")
 
   # ======== Nav Updater ========
@@ -202,6 +207,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         state=self.mmu[MmuKeys.STATE],
         response=self.mmu[MmuKeys.RESPONSE],
         responseData=self.mmu[MmuKeys.RESPONSE_DATA],
+        prusaVersion=self.mmu[MmuKeys.PRUSA_VERSION],
       )
     )
 
@@ -226,9 +232,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # This line right here is how we handle not prompting the user again if they timeout
     if TIMEOUT_TAG in tags:
       return # passthrough
-    
-    # TODO: TEMP TO TEST REMOVE ME BEFORE YOU RELEASE!!!!!!!
-    return
 
     # handle tool remap if enabled
     if self.config[SettingsKeys.USE_FILAMENT_MAP] and search(TOOL_REGEX, cmd):
@@ -241,8 +244,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         self._log("gcode_queuing_hook_T# ERROR command: {}, {}".format(cmd, str(e)), debug=True)
         return # passthrough
 
-    # This blocks non MK3s from proceeding. For MK4 support see events.
-    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and cmd.startswith("M1600"):
+    # MK4: This blocks non MK3s from proceeding. For MK4 support see events.
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+      return # passthrough
+
+    if cmd.startswith("M1600"):
       return # passthrough
 
     # only react to tool change commands and ignore everything if they dont want the dialog
@@ -594,7 +600,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.mmu[MmuKeys.TOOL] == newPayload[MmuKeys.TOOL] and
       self.mmu[MmuKeys.PREV_TOOL] == newPayload[MmuKeys.PREV_TOOL] and
       self.mmu[MmuKeys.RESPONSE] == newPayload[MmuKeys.RESPONSE] and
-      self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA]
+      self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA] and
+      self.mmu[MmuKeys.PRUSA_VERSION] == newPayload[MmuKeys.PRUSA_VERSION]
     ):
       return newPayload
     
@@ -652,9 +659,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return
 
     # Handle print started for MK4s, pause and show the prompt.
-    # TODO: UNCOMMENT ME BEFORE YOU MERGE. THIS MAKES MK3s WORK
-    # if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and event == Events.PRINT_STARTED:
-    if event == Events.PRINT_STARTED:
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and event == Events.PRINT_STARTED:
       self._log("on_event {}".format(event), debug=True)
       self._disable_m863_mode()
       if self._printer.set_job_on_hold(True):

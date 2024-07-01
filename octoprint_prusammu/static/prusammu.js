@@ -34,6 +34,7 @@ $(() => {
     let isActiveTab = true;
     // Track if we've loaded the filament or not. Useful for spool managers that are slow to load.
     self.filamentRetryCount = 0;
+    self._prusaVersion;
     // Keep track so we can refresh if needed
     self._toolId = 0;
     self._previousToolId = 0;
@@ -447,7 +448,7 @@ $(() => {
       });
 
       // Add the skip option at the bottom.
-      selections[filament.length] = "Skip";
+      selections["skip"] = "Skip";
 
       const opts = {
         title: gettext("Prusa MMU"),
@@ -455,9 +456,8 @@ $(() => {
         selections: selections,
         maycancel: true,
         onselect: (index) => {
-          if (index > -1) {
-            selectCallback(index);
-          }
+          log("Selection:", index);
+          selectCallback(index);
         },
         onclose: () => {
           self.modal = undefined;
@@ -493,7 +493,10 @@ $(() => {
           closeModal();
           break;
         case "nav":
-         updateNav(data.state, data.tool, data.previousTool, data.response, data.responseData);
+          updateNav(data.state, data.tool, data.previousTool, data.response, data.responseData);
+          if (data.prusaVersion) {
+            self._prusaVersion = data.prusaVersion;
+          }
           break;
         // case "debug": these just exist to get logged and we do that above.
       }
@@ -523,6 +526,9 @@ $(() => {
     self.onSettingsShown = () => {
       bindPickers();
       showError();
+      if (self._prusaVersion !== null && self._prusaVersion !== "MK3") {
+        $("#settings_plugin_prusammu .mk4").removeClass("hide");
+      }
     };
 
     /**
