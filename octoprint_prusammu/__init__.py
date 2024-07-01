@@ -162,8 +162,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.states[StateKeys.SELECTED_FILAMENT] = command
 
     # MK4
-    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
-      self._enable_m863_mode(command)
+    # TODO: UNCOMMENT ME BEFORE MERGE, USED TO TEST
+    # if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+    self._enable_m863_mode(command)
 
     self._clean_up_prompt()
 
@@ -176,17 +177,17 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # ======== M863 Mode ========
 
   def _enable_m863_mode(self, command):
-    self._log("_enable_m863_mode {}".format(command), debug=True)
-    self.states[StateKeys.SELECTED_FILAMENT] = command
+    self._log("_enable_m863_mode T{}".format(command), debug=True)
     self._printer.commands("M863 E1")
     for x in range(0,4):
-      if self.config[SettingsKeys.DEFAULT_FILAMENT] != str(command):
-        self._printer.commands(
-          "M863 M P{} L{}".format(x, self.config[SettingsKeys.DEFAULT_FILAMENT]))
+      if str(x) != str(command):
+        line = "M863 M P{} L{}".format(x, command)
+        self._log("_enable_m863_mode Line: ".format(line), debug=True)
+        self._printer.commands(line)
 
   def _disable_m863_mode(self):
     self._log("_disable_m863_mode", debug=True)
-    self._printer.commands("M863 E0")
+    self._printer.commands("M863 R")
 
   # ======== Nav Updater ========
 
