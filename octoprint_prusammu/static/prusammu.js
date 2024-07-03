@@ -448,9 +448,9 @@ $(() => {
       });
 
       // Add the skip option at the bottom.
-      // TODO: FIX ME if (self._prusaVersion !== "MK3") {
+      if (self._prusaVersion !== "MK3") {
         selections["skip"] = "Skip";
-      // }
+      }
 
       const opts = {
         title: gettext("Prusa MMU"),

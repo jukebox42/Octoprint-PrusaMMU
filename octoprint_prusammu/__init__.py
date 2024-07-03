@@ -122,7 +122,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return abort(409, "No active prompt")
 
       choice = data["choice"]
-      if choice != "skip" and not isinstance(choice, int) or not choice < 5 or not choice >= 0:
+      if choice != "skip" and not (int(choice) < 5 or int(choice) >= 0):
         return abort(400, "{} is not a valid value for filament choice".format(choice+1))
 
       self._log("on_api_command T{}".format(choice), debug=True)
