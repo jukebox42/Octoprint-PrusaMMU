@@ -1,6 +1,8 @@
 # Octoprint-PrusaMMU
 
-Note: MK3.5/3.9/4 is not yet supported for single filament prints. Work in progress.
+<span style="color:red">**For MK3.5/3.9/5 you cannot use single print profile. You MUST use use the
+MMU profile with a single filament, what you pick doesn't matter, we will overwrite the filament
+with the tool you choose.**</span>
 
 **Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in

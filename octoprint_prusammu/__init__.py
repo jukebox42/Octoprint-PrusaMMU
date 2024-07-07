@@ -145,6 +145,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _timeout_prompt(self):
     # Handle if the user had a default filament
     if (
+      self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and # non-MK3 can't use default filament
       self.config[SettingsKeys.USE_DEFAULT_FILAMENT] and
       self.config[SettingsKeys.DEFAULT_FILAMENT] > -1
     ):
@@ -152,8 +153,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     
     if self.mmu[MmuKeys.PRUSA_VERSION] == PrusaProfile.MK3:
       self._printer.commands("Tx", tags={TIMEOUT_TAG})
-    elif self.states[StateKeys.SELECTED_FILAMENT]:
-      self._enable_m863_mode(self.states[StateKeys.SELECTED_FILAMENT])
 
     self._clean_up_prompt()
 
@@ -163,6 +162,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     if str(command) == "skip":
       self._log("_done_prompt SKIP", debug=True)
       return
+
     self.states[StateKeys.SELECTED_FILAMENT] = command
 
     # MK4: Enable filament rewrite
@@ -182,7 +182,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _enable_m863_mode(self, command):
     self._log("_enable_m863_mode T{}".format(command), debug=True)
     self.filamentOverride = command
+    # Enable tool remapping
     lines = ["M863 E1"]
+    # For each tool, remap the (P) tool with the (L) tool.
     for x in range(5):
       lines.append("M863 M P{} L{}".format(x, command))
     self._log("_enable_m863_mode", lines, debug=True)
@@ -191,6 +193,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _disable_m863_mode(self):
     self._log("_disable_m863_mode", debug=True)
     self.filamentOverride = None
+    # (R)eset the tool remapping and then disable it. Might be overkill but that's ok.
     self._printer.commands(["M863 R", "M863 E0"])
 
   # ======== Nav Updater ========
