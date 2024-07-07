@@ -184,15 +184,14 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.filamentOverride = command
     lines = ["M863 E1"]
     for x in range(5):
-      if str(x) != str(command):
-        lines.append("M863 M P{} L{}".format(x, command))
+      lines.append("M863 M P{} L{}".format(x, command))
     self._log("_enable_m863_mode", lines, debug=True)
     self._printer.commands(lines)
 
   def _disable_m863_mode(self):
     self._log("_disable_m863_mode", debug=True)
     self.filamentOverride = None
-    self._printer.commands("M863 R")
+    self._printer.commands(["M863 R", "M863 E0"])
 
   # ======== Nav Updater ========
 
@@ -234,7 +233,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return # passthrough
 
     # handle tool remap if enabled
-    if self.config[SettingsKeys.USE_FILAMENT_MAP] and search(TOOL_REGEX, cmd):
+    if (
+       self.filamentOverride is None and self.config[SettingsKeys.USE_FILAMENT_MAP] and
+       search(TOOL_REGEX, cmd)
+    ):
       try:
         tool = int(search(TOOL_REGEX, cmd).group(1))
         new_tool = int(self.config[SettingsKeys.FILAMENT_MAP][tool]["id"])
@@ -577,6 +579,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       if self.mmu[MmuKeys.TOOL] != tool:
         self.mmu[MmuKeys.PREV_TOOL] = self.mmu[MmuKeys.TOOL]
 
+      # MK4 only: If we're overriding make sure to always show that one
+      if self.filamentOverride is not None:
+        tool = self.filamentOverride
+
       # Store the tool value on the tool. We're about to get a loading call.
       self.mmu[MmuKeys.TOOL] = tool
     except:
@@ -650,12 +656,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # Handle disconnected event to set the mmu to Not Found (no printer...)
     if event == Events.DISCONNECTED:
       self._log("on_event {}".format(event), debug=True)
-      # Reset the MMU
-      self.mmu = DEFAULT_MMU_STATE.copy()
-      # Reset printer state
       self.printerHasMmu = False
-      self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
       self._disable_m863_mode()
+      self._fire_event(PluginEventKeys.MMU_CHANGE, DEFAULT_MMU_STATE.copy())
       return
 
     # Handle print started for MK4s, pause and show the prompt.
@@ -664,6 +667,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self._disable_m863_mode()
       if self._printer.set_job_on_hold(True):
         self._fire_event(PluginEventKeys.SHOW_PROMPT)
+      return
 
     # Handle terminal states when printer is no longer printing to reset the MMU
     if (
@@ -672,13 +676,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       (event == Events.PRINT_FAILED and self.mmu[MmuKeys.STATE] != MmuStates.ATTENTION)
     ):
       self._log("on_event {}".format(event), debug=True)
-      # Reset the MMU
-      prusaVersion = self.mmu[MmuKeys.PRUSA_VERSION]
-      self.mmu = DEFAULT_MMU_STATE.copy()
-      self.mmu[MmuKeys.PRUSA_VERSION] = prusaVersion
-      self.printerHasMmu = False
-      self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
+      newMmu = DEFAULT_MMU_STATE.copy()
+      newMmu[MmuKeys.PRUSA_VERSION] = self.mmu[MmuKeys.PRUSA_VERSION]
       self._disable_m863_mode()
+      self._fire_event(PluginEventKeys.MMU_CHANGE, newMmu)
+      return
 
   # ======== SettingsPlugin ========
 
