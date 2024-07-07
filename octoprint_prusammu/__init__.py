@@ -680,6 +680,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     ):
       self._log("on_event {}".format(event), debug=True)
       newMmu = DEFAULT_MMU_STATE.copy()
+      newMmu[MmuKeys.STATE] = MmuStates.OK
       newMmu[MmuKeys.PRUSA_VERSION] = self.mmu[MmuKeys.PRUSA_VERSION]
       self._disable_m863_mode()
       self._fire_event(PluginEventKeys.MMU_CHANGE, newMmu)
