@@ -145,7 +145,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _timeout_prompt(self):
     # Handle if the user had a default filament
     if (
-      self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and # non-MK3 can't use default filament
+      self.mmu[MmuKeys.PRUSA_VERSION] == PrusaProfile.MK3 and # non-MK3 can't use default filament
       self.config[SettingsKeys.USE_DEFAULT_FILAMENT] and
       self.config[SettingsKeys.DEFAULT_FILAMENT] > -1
     ):
@@ -161,6 +161,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # If we get a skip then the user chose to skip
     if str(command) == "skip":
       self._log("_done_prompt SKIP", debug=True)
+      self._clean_up_prompt()
       return
 
     self.states[StateKeys.SELECTED_FILAMENT] = command
