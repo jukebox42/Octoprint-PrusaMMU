@@ -7,7 +7,7 @@ with the tool you choose.**</span>
 **Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
 "MMU Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for Prusa printers with an MMU. Supports MMU firmware  `3.X.X`.
+only works for Prusa printers with an MMU. Supports MK3s/3.5/3.9/4 MMU3 firmware  `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -184,6 +184,7 @@ Payload:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
 
@@ -203,6 +204,7 @@ Payload:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
 
@@ -243,6 +245,7 @@ Response:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
 
@@ -391,9 +394,10 @@ Special thanks to:
 - [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.
 - [@Kevman323](https://github.com/Kevman323) for a significant revamp of the MMU 3.0.0 code,
   cleaning up error codes, and bringing in more data to the nav.
-- For help supporting the MK3.5/3.9/4:
+- For help testing/supporting the MK3.5/3.9/4:
   - [@AaronVARC](https://github.com/AaronVARC)
   - [@Anubis1971](https://github.com/Anubis1971)
+  - [@BlueFyre](https://github.com/BlueFyre) - For the single print solution recommendation.
   - [@jshank](https://github.com/jshank)
   - [@Kjubyte](https://github.com/Kjubyte)
   - [@MysticGringo](https://github.com/MysticGringo)
@@ -401,5 +405,6 @@ Special thanks to:
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
 - [Debugging MMU2](https://revilor.github.io/MMU2-Marlin/debugging.html)
+- [Buddy Board Commands](https://help.prusa3d.com/article/buddy-firmware-specific-g-code-commands_633112)
 - [MMU2 LEDs Meaning](https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light)
 - [Octoprint Plugin Docs](https://docs.octoprint.org/en/master/plugins/mixins.html)

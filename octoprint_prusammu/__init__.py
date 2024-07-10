@@ -179,15 +179,17 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self._printer.set_job_on_hold(False)
 
   # ======== M863 Mode ========
+  # https://github.com/prusa3d/Prusa-Firmware-Buddy/blob/7475f19d55ada95007b2895f5294e6a67d076b14/src/marlin_stubs/M863.cpp#L24
 
   def _enable_m863_mode(self, command):
     self._log("_enable_m863_mode T{}".format(command), debug=True)
     self.filamentOverride = command
     # Enable tool remapping
-    lines = ["M863 E1"]
+    lines = ["M863 E1", "M863 R"]
     # For each tool, remap the (P) tool with the (L) tool.
     for x in range(5):
-      lines.append("M863 M P{} L{}".format(x, command))
+      if str(x) != str(command):
+        lines.append("M863 M P{} L{}".format(x, command))
     self._log("_enable_m863_mode", lines, debug=True)
     self._printer.commands(lines)
 
