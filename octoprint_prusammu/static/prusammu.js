@@ -449,7 +449,7 @@ $(() => {
 
       // Add the skip option at the bottom.
       if (self._prusaVersion !== "MK3") {
-        selections["skip"] = "Skip";
+        selections["skip"] = "Skip (No filament override)";
       }
 
       const opts = {

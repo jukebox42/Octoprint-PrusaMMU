@@ -188,8 +188,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     lines = ["M863 E1", "M863 R"]
     # For each tool, remap the (P) tool with the (L) tool.
     for x in range(5):
-      if str(x) != str(command):
-        lines.append("M863 M P{} L{}".format(x, command))
+      if x != int(command):
+        lines.append("M863 M P{} L{}".format(command, x))
     self._log("_enable_m863_mode", lines, debug=True)
     self._printer.commands(lines)
 
@@ -197,7 +197,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self._log("_disable_m863_mode", debug=True)
     self.filamentOverride = None
     # (R)eset the tool remapping and then disable it. Might be overkill but that's ok.
-    self._printer.commands(["M863 R", "M863 E0"])
+    self._printer.commands(["M863 R"])
 
   # ======== Nav Updater ========
 
