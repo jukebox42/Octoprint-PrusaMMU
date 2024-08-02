@@ -133,6 +133,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     if command == "getmmu":
       return jsonify(self._fire_event(PluginEventKeys.REFRESH_NAV))
+    
+    if command == "prompt":
+      if not user_permission.can():
+        return abort(403, "Insufficient permissions")
+      return self._show_prompt()
 
   # ======== Prompt ========
 
@@ -162,6 +167,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     if str(command) == "skip":
       self._log("_done_prompt SKIP", debug=True)
       self._clean_up_prompt()
+
+      self._disable_m863_mode()
       return
 
     self.states[StateKeys.SELECTED_FILAMENT] = command
@@ -169,7 +176,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # MK4: Enable filament rewrite
     if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
       self.filamentOverride = command
-      # self._enable_m863_mode(command)
+      self._enable_m863_mode(command)
 
     self._clean_up_prompt()
 
@@ -185,7 +192,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _enable_m863_mode(self, command):
     self._log("_enable_m863_mode T{}".format(command), debug=True)
     self.filamentOverride = command
-    # Enable tool remapping
+    # Enable tool remapping and reset it.
     lines = ["M863 E1", "M863 R"]
     # For each tool, remap the (P) tool with the (L) tool.
     for x in range(5):
@@ -195,10 +202,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self._printer.commands(lines)
 
   def _disable_m863_mode(self):
-    # self._log("_disable_m863_mode", debug=True)
-    # self.filamentOverride = None
-    # (R)eset the tool remapping and then disable it. Might be overkill but that's ok.
-    # self._printer.commands(["M863 R"])
+    self._log("_disable_m863_mode", debug=True)
+    self.filamentOverride = None
+    # (R)eset the tool remapping.
+    self._printer.commands(["M863 R"])
     return
 
   # ======== Nav Updater ========
@@ -256,13 +263,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     # MK4: This blocks non MK3s from proceeding. For MK4 support see events.
     if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
-      # Don't override the tool  they want to print with
-      if self.filamentOverride is not None and cmd == "T{}".format(self.filamentOverride):
-        return # passthrough
-      # replace all tools with the one they selected
-      if self.filamentOverride is not None and search(TOOL_REGEX, cmd):
-        self._log("gcode_queuing_hook_T# MK4 rewrite command: {} -> T{}".format(cmd, new_tool), debug=True)
-        return [("T{}".format(self.filamentOverride),),]
       return # passthrough
 
     if cmd.startswith("M1600"):
@@ -674,14 +674,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.printerHasMmu = False
       self._disable_m863_mode()
       self._fire_event(PluginEventKeys.MMU_CHANGE, DEFAULT_MMU_STATE.copy())
-      return
-
-    # Handle print started for MK4s, pause and show the prompt.
-    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and event == Events.PRINT_STARTED:
-      self._log("on_event {}".format(event), debug=True)
-      self._disable_m863_mode()
-      if self._printer.set_job_on_hold(True):
-        self._fire_event(PluginEventKeys.SHOW_PROMPT)
       return
 
     # Handle terminal states when printer is no longer printing to reset the MMU

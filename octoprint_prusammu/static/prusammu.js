@@ -35,6 +35,7 @@ $(() => {
     // Track if we've loaded the filament or not. Useful for spool managers that are slow to load.
     self.filamentRetryCount = 0;
     self._prusaVersion;
+    self._overrideFilament = "";
     // Keep track so we can refresh if needed
     self._toolId = 0;
     self._previousToolId = 0;
@@ -335,7 +336,10 @@ $(() => {
     /**
      * Used for the click event on the nav to open the plugin settings.
      */
-     self.openSettings = () => {
+    self.openSettings = () => {
+      if (self.prusaVersion !== "MK3") {
+        return showModal();
+      }
       self.globalSettings.show();
       self.globalSettings.selectTab("#settings_plugin_prusammu");
     };
@@ -424,6 +428,7 @@ $(() => {
      */
     const selectCallback = (index) => {
       log("selectCallback", index);
+      self._overrideFilament = index === "skip" ? "" : index;
       return OctoPrint.simpleApiCommand(PLUGIN_NAME, "select", { choice: index });
     };
 
