@@ -167,7 +167,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     if str(command) == "skip":
       self._log("_done_prompt SKIP", debug=True)
       self._clean_up_prompt()
-
       self._disable_m863_mode()
       return
 
@@ -594,10 +593,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       if self.mmu[MmuKeys.TOOL] != tool:
         self.mmu[MmuKeys.PREV_TOOL] = self.mmu[MmuKeys.TOOL]
 
-      # MK4 only: If we're overriding make sure to always show that one
-      if self.filamentOverride is not None:
-        tool = self.filamentOverride
-
       # Store the tool value on the tool. We're about to get a loading call.
       self.mmu[MmuKeys.TOOL] = tool
     except:
@@ -624,9 +619,16 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA] and
       self.mmu[MmuKeys.PRUSA_VERSION] == newPayload[MmuKeys.PRUSA_VERSION]
     ):
+      # MK4 only: If we're overriding make sure to always show that one
+      if self.filamentOverride is not None:
+        newPayload[MmuKeys.TOOL] = self.filamentOverride
       return newPayload
     
     self.mmu = newPayload
+
+    # MK4 only: If we're overriding make sure to always show that one
+    if self.filamentOverride is not None:
+      newPayload[MmuKeys.TOOL] = self.filamentOverride
 
     # Steps are taken in gcode_received_hook to reduce the spamminess of events. Proper
     # deduplication happens in on_event
