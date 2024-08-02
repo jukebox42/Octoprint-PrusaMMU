@@ -1,5 +1,7 @@
 # Octoprint-PrusaMMU
 
+**TODO**
+
 <span style="color:red">**For MK3.5/3.9/5 you cannot use single print profile. You MUST use use the
 MMU profile with a single filament, what you pick doesn't matter, we will overwrite the filament
 with the tool you choose.**</span>
@@ -59,6 +61,8 @@ The command interactions are as follows:
     display. This is to support multicolor printing. This trigger is also used to show unloading.
 
 ### MK3.5/3.9/4 MMU 3.X.X - Single Print
+
+**TODO**
 
 Note Prusa removed the single print profile which served a `Tx` we use to do the detection. We use
 something different for MK3.5+. <span style="color:red">**For MK3.5+ you cannot use single print
@@ -248,6 +252,17 @@ Response:
   prusaVersion: string
 }
 ```
+
+#### `prompt`
+
+Call to show the filament select prompt. Only used for MK3.5+ printers. Don't use this with MK3.
+
+Request:
+```javascript
+{ "command": "prompt" }
+```
+
+Response: None
 
 ### Exposed Javascript Functions
 

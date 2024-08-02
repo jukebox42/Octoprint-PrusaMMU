@@ -174,7 +174,6 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
     # MK4: Enable filament rewrite
     if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
-      self.filamentOverride = command
       self._enable_m863_mode(command)
 
     self._clean_up_prompt()
@@ -297,6 +296,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # to try and match the information we'd expect to get. Some day I hope prusa gives us back
     # the data we had before.
 
+    # Dedupe
     if "MMU2:" in line:
       if self.mmu[MmuKeys.LAST_LINE] == line:
         return
