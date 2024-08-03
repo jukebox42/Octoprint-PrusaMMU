@@ -191,7 +191,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self._log("_enable_m863_mode T{}".format(command), debug=True)
     self.filamentOverride = command
     # Enable tool remapping and reset it.
-    lines = ["M863 E1", "M863 R"]
+    lines = ["M863 E1"]
     # For each tool, remap the (P) tool with the (L) tool.
     for x in range(5):
       if x != int(command):
