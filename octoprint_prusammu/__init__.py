@@ -37,11 +37,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
                      octoprint.plugin.SettingsPlugin):
 
   def __init__(self):
-    self.prusaVersion = None
     # If the printer reports having an mmu (Only used with MK3.5+)
     self.printerHasMmu = False
-    # Make sure we don't catch all the temp changes (Only used with MK3.5+)
-    self.firstTempSeen = False
+    # Used for MK4 to retain the override.
+    self.filamentOverride = None
 
     # Dialog Status Variables
     self.timer = None
@@ -123,16 +122,22 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return abort(409, "No active prompt")
 
       choice = data["choice"]
-      if not isinstance(choice, int) or not choice < 5 or not choice >= 0:
+      if choice != "skip" and not (int(choice) < 5 or int(choice) >= 0):
         return abort(400, "{} is not a valid value for filament choice".format(choice+1))
 
       self._log("on_api_command T{}".format(choice), debug=True)
-      self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
+      if choice != "skip":
+        self._fire_event(PluginEventKeys.MMU_CHANGE, dict(tool=choice))
       self._done_prompt(choice)
       return
 
     if command == "getmmu":
       return jsonify(self._fire_event(PluginEventKeys.REFRESH_NAV))
+    
+    if command == "prompt":
+      if not user_permission.can():
+        return abort(403, "Insufficient permissions")
+      return self._show_prompt()
 
   # ======== Prompt ========
 
@@ -145,18 +150,32 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def _timeout_prompt(self):
     # Handle if the user had a default filament
     if (
+      self.mmu[MmuKeys.PRUSA_VERSION] == PrusaProfile.MK3 and # non-MK3 can't use default filament
       self.config[SettingsKeys.USE_DEFAULT_FILAMENT] and
       self.config[SettingsKeys.DEFAULT_FILAMENT] > -1
     ):
       self.states[StateKeys.SELECTED_FILAMENT] = self.config[SettingsKeys.DEFAULT_FILAMENT]
-    elif self.prusaVersion == PrusaProfile.MK3:
+    
+    if self.mmu[MmuKeys.PRUSA_VERSION] == PrusaProfile.MK3:
       self._printer.commands("Tx", tags={TIMEOUT_TAG})
 
     self._clean_up_prompt()
 
   def _done_prompt(self, command, tags=set()):
     self._log("_done_prompt {}".format(command), debug=True)
+    # If we get a skip then the user chose to skip
+    if str(command) == "skip":
+      self._log("_done_prompt SKIP", debug=True)
+      self._clean_up_prompt()
+      self._disable_m863_mode()
+      return
+
     self.states[StateKeys.SELECTED_FILAMENT] = command
+
+    # MK4: Enable filament rewrite
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+      self._enable_m863_mode(command)
+
     self._clean_up_prompt()
 
   def _clean_up_prompt(self):
@@ -164,6 +183,28 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.states[StateKeys.ACTIVE] = False
     self._plugin_manager.send_plugin_message(self._identifier, dict(action="close"))
     self._printer.set_job_on_hold(False)
+
+  # ======== M863 Mode ========
+  # https://github.com/prusa3d/Prusa-Firmware-Buddy/blob/7475f19d55ada95007b2895f5294e6a67d076b14/src/marlin_stubs/M863.cpp#L24
+
+  def _enable_m863_mode(self, command):
+    self._log("_enable_m863_mode T{}".format(command), debug=True)
+    self.filamentOverride = command
+    # Enable tool remapping and reset it.
+    lines = ["M863 E1"]
+    # For each tool, remap the (P) tool with the (L) tool.
+    for x in range(5):
+      if x != int(command):
+        lines.append("M863 M P{} L{}".format(command, x))
+    self._log("_enable_m863_mode", lines, debug=True)
+    self._printer.commands(lines)
+
+  def _disable_m863_mode(self):
+    self._log("_disable_m863_mode", debug=True)
+    self.filamentOverride = None
+    # (R)eset the tool remapping.
+    self._printer.commands(["M863 R"])
+    return
 
   # ======== Nav Updater ========
 
@@ -178,6 +219,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         state=self.mmu[MmuKeys.STATE],
         response=self.mmu[MmuKeys.RESPONSE],
         responseData=self.mmu[MmuKeys.RESPONSE_DATA],
+        prusaVersion=self.mmu[MmuKeys.PRUSA_VERSION],
       )
     )
 
@@ -186,12 +228,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def firmware_info_hook(self, comm_instance, firmware_name, firmware_data, *args, **kwargs):
     # Figure out what Prusa version we are dealing with (defaults to MK3)
-    self.prusaVersion = detect_connection_profile(firmware_data["MACHINE_TYPE"])
-    self._log("firmware_info_hook: {}".format(self.prusaVersion),
+    self.mmu[MmuKeys.PRUSA_VERSION] = detect_connection_profile(firmware_data["MACHINE_TYPE"])
+    self._log("firmware_info_hook: {}".format(self.mmu[MmuKeys.PRUSA_VERSION]),
               obj=firmware_data, debug=True)
     
     # MK4: The MMU doesn't tell us it's ok so if the printer has one assume it is.
-    if self.prusaVersion != PrusaProfile.MK3 and self.printerHasMmu:
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3 and self.printerHasMmu:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK))
 
   # ======== Gcode Hooks ========
@@ -199,8 +241,15 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def gcode_queuing_hook(self, comm, phase, cmd, cmd_type, gcode,
                          subcode=None, tags=None, *args, **kwarg):
+    # This line right here is how we handle not prompting the user again if they timeout
+    if TIMEOUT_TAG in tags:
+      return # passthrough
+
     # handle tool remap if enabled
-    if self.config[SettingsKeys.USE_FILAMENT_MAP] and search(TOOL_REGEX, cmd):
+    if (
+       self.filamentOverride is None and self.config[SettingsKeys.USE_FILAMENT_MAP] and
+       search(TOOL_REGEX, cmd)
+    ):
       try:
         tool = int(search(TOOL_REGEX, cmd).group(1))
         new_tool = int(self.config[SettingsKeys.FILAMENT_MAP][tool]["id"])
@@ -209,43 +258,32 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       except Exception as e:
         self._log("gcode_queuing_hook_T# ERROR command: {}, {}".format(cmd, str(e)), debug=True)
         return # passthrough
-      
-    # TODO: This blocks non MK3s from using the tool changer. Needs more testing.
-    if self.prusaVersion != PrusaProfile.MK3 and cmd.startswith("M1600 "):
+
+    # MK4: This blocks non MK3s from proceeding. For MK4 support see events.
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+      return # passthrough
+
+    if cmd.startswith("M1600"):
       return # passthrough
 
     # only react to tool change commands and ignore everything if they dont want the dialog
     if not cmd.startswith("Tx") and not cmd.startswith("M109 S"):
       return # passthrough
 
-    # This line right here is how we handle not prompting the user again if they timeout
-    if TIMEOUT_TAG in tags:
-      return # passthrough
-
-    if is_pause_line(cmd, self.prusaVersion):
+    if is_pause_line(cmd, self.mmu[MmuKeys.PRUSA_VERSION]):
       self._log("gcode_queuing_hook_M109 command: {}".format(cmd), debug=True)
       if self.states[StateKeys.SELECTED_FILAMENT] is not None:
         tool_cmd = "T{}".format(self.states[StateKeys.SELECTED_FILAMENT])
         self._fire_event(PluginEventKeys.MMU_CHANGE,
-                        dict(tool=self.states[StateKeys.SELECTED_FILAMENT]))
+                         dict(tool=self.states[StateKeys.SELECTED_FILAMENT]))
         self.states[StateKeys.SELECTED_FILAMENT] = None
         self._log("gcode_queuing_hook_M109 tool: {}".format(tool_cmd), debug=True)
-        # Rewrite and append the tool commands. The multi array adds the MMU commands for MK3.5+
-        return [(cmd,), (tool_cmd,)] # + get_additional_lines(self.prusaVersion)
-
+        # Rewrite and append the tool commands.
+        return [(cmd,), (tool_cmd,)]
       return # passthrough
-
-    # Prompt to change filament for the MK4. We send it after the M104 (heat nozzle)
-    if self.prusaVersion != PrusaProfile.MK3 and not self.firstTempSeen and cmd.startswith("M104 S"):
-      self._log("gcode_queuing_hook {}".format(cmd), debug=True)
-      self.firstTempSeen = True
-      if self._printer.set_job_on_hold(True):
-        self._fire_event(PluginEventKeys.SHOW_PROMPT)
-      return # passthrough (do not silence or the extruder wont heat)
 
     # Prompt for filament change
     if cmd.startswith("Tx"):
-      self.firstTempSeen = True
       self._log("gcode_queuing_hook {}".format(cmd), debug=True)
       if self._printer.set_job_on_hold(True):
         self._fire_event(PluginEventKeys.SHOW_PROMPT)
@@ -258,6 +296,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     # to try and match the information we'd expect to get. Some day I hope prusa gives us back
     # the data we had before.
 
+    # Dedupe
     if "MMU2:" in line:
       if self.mmu[MmuKeys.LAST_LINE] == line:
         return
@@ -514,7 +553,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   # Listen for MMU events and update the nav to reflect it
   def gcode_received_hook(self, comm, line, *args, **kwargs):
     # Detect if we have an MMU. This gets sent BEFORE the firmware info is sent.
-    if self.prusaVersion is None and not self.printerHasMmu and line.startswith(DETECT_MMU):
+    if self.mmu[MmuKeys.PRUSA_VERSION] is None and not self.printerHasMmu and line.startswith(DETECT_MMU):
       self.printerHasMmu = True
       self._log("gcode_received_hook MMU: {}".format(line), debug=True)
       # For the MK4, just say it's ok since we don't get an OK anymore.
@@ -522,11 +561,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return line
     
     # Until we have a version there's no point in trying to parse
-    if self.prusaVersion is None:
+    if self.mmu[MmuKeys.PRUSA_VERSION] is None:
       return line
 
     # MK3.5/3.9/4
-    if self.prusaVersion != PrusaProfile.MK3:
+    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
       self.mk4_gcode_received(line)
       return line
 
@@ -577,11 +616,19 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       self.mmu[MmuKeys.TOOL] == newPayload[MmuKeys.TOOL] and
       self.mmu[MmuKeys.PREV_TOOL] == newPayload[MmuKeys.PREV_TOOL] and
       self.mmu[MmuKeys.RESPONSE] == newPayload[MmuKeys.RESPONSE] and
-      self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA]
+      self.mmu[MmuKeys.RESPONSE_DATA] == newPayload[MmuKeys.RESPONSE_DATA] and
+      self.mmu[MmuKeys.PRUSA_VERSION] == newPayload[MmuKeys.PRUSA_VERSION]
     ):
+      # MK4 only: If we're overriding make sure to always show that one
+      if self.filamentOverride is not None:
+        newPayload[MmuKeys.TOOL] = self.filamentOverride
       return newPayload
     
     self.mmu = newPayload
+
+    # MK4 only: If we're overriding make sure to always show that one
+    if self.filamentOverride is not None:
+      newPayload[MmuKeys.TOOL] = self.filamentOverride
 
     # Steps are taken in gcode_received_hook to reduce the spamminess of events. Proper
     # deduplication happens in on_event
@@ -624,15 +671,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       return
 
     # Handle disconnected event to set the mmu to Not Found (no printer...)
-    if event == "Disconnected":
+    if event == Events.DISCONNECTED:
       self._log("on_event {}".format(event), debug=True)
-      # Reset the MMU
-      self.mmu = DEFAULT_MMU_STATE.copy()
-      # Reset printer state
-      self.prusaVersion = None
       self.printerHasMmu = False
-      self.firstTempSeen = False
-      self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
+      self._disable_m863_mode()
+      self._fire_event(PluginEventKeys.MMU_CHANGE, DEFAULT_MMU_STATE.copy())
+      return
 
     # Handle terminal states when printer is no longer printing to reset the MMU
     if (
@@ -641,11 +685,12 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       (event == Events.PRINT_FAILED and self.mmu[MmuKeys.STATE] != MmuStates.ATTENTION)
     ):
       self._log("on_event {}".format(event), debug=True)
-      # Reset the MMU
-      self.mmu = DEFAULT_MMU_STATE.copy()
-      self.printerHasMmu = False
-      self.firstTempSeen = False
-      self._fire_event(PluginEventKeys.MMU_CHANGE, self.mmu)
+      newMmu = DEFAULT_MMU_STATE.copy()
+      newMmu[MmuKeys.STATE] = MmuStates.OK
+      newMmu[MmuKeys.PRUSA_VERSION] = self.mmu[MmuKeys.PRUSA_VERSION]
+      self._disable_m863_mode()
+      self._fire_event(PluginEventKeys.MMU_CHANGE, newMmu)
+      return
 
   # ======== SettingsPlugin ========
 

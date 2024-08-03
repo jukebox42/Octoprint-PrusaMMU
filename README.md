@@ -1,11 +1,15 @@
 # Octoprint-PrusaMMU
 
-Note: MK3.5/3.9/4 is not yet supported for single filament prints. Work in progress.
+**TODO**
+
+<span style="color:red">**For MK3.5/3.9/5 you cannot use single print profile. You MUST use use the
+MMU profile with a single filament, what you pick doesn't matter, we will overwrite the filament
+with the tool you choose.**</span>
 
 **Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
 "MMU Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for Prusa printers with an MMU. Supports MMU firmware  `3.X.X`.
+only works for Prusa printers with an MMU. Supports MK3s/3.5/3.9/4 MMU3 firmware  `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -58,7 +62,21 @@ The command interactions are as follows:
 
 ### MK3.5/3.9/4 MMU 3.X.X - Single Print
 
-Unsupported, TBD. Prusa removed the single print profile which served a `Tx` we use to do the detection.
+**TODO**
+
+Note Prusa removed the single print profile which served a `Tx` we use to do the detection. We use
+something different for MK3.5+. <span style="color:red">**For MK3.5+ you cannot use single print
+profile. You MUST use use the MMU profile with a single filament, what you pick doesn't matter, we
+will overwrite the filament with the tool you choose.**</span>
+
+When a print is started, the print is immediately pause and the user is prompted to select a
+filament. The plugin then sends a `M863 E1` to enable tool remapping then for every tool a
+`M863 P# L#` is sent to map every tool to the chosen one. When the print ends, the plugin sends a
+`M863 E0` to disable tool remapping.
+
+*This does mean you will always get the prompt modal for every print, but you can click skip and
+have it preserve the default behavior. In a future release, I will try to read ahead and figure out
+if only one tool was used in the profile.*
 
 ### MK3s MMU 3.X.X - MMU State Detection
 
@@ -117,6 +135,8 @@ events and printer notifications, so it can update the navbar: (`gcode_received_
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
+1. MK3.5+, it's possible to get stuck in a state where the `M863` is not disabled, But every print
+   start will disable it to avoid unexpected behavior.
 
 ## Developer Zone
 
@@ -168,6 +188,7 @@ Payload:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
 
@@ -187,6 +208,7 @@ Payload:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
 
@@ -227,8 +249,20 @@ Response:
   previousTool: int
   response: string
   responseData: string
+  prusaVersion: string
 }
 ```
+
+#### `prompt`
+
+Call to show the filament select prompt. Only used for MK3.5+ printers. Don't use this with MK3.
+
+Request:
+```javascript
+{ "command": "prompt" }
+```
+
+Response: None
 
 ### Exposed Javascript Functions
 
@@ -375,9 +409,10 @@ Special thanks to:
 - [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.
 - [@Kevman323](https://github.com/Kevman323) for a significant revamp of the MMU 3.0.0 code,
   cleaning up error codes, and bringing in more data to the nav.
-- For help supporting the MK3.5/3.9/4:
+- For help testing/supporting the MK3.5/3.9/4:
   - [@AaronVARC](https://github.com/AaronVARC)
   - [@Anubis1971](https://github.com/Anubis1971)
+  - [@BlueFyre](https://github.com/BlueFyre) - For the single print solution recommendation.
   - [@jshank](https://github.com/jshank)
   - [@Kjubyte](https://github.com/Kjubyte)
   - [@MysticGringo](https://github.com/MysticGringo)
@@ -385,5 +420,6 @@ Special thanks to:
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
 - [Debugging MMU2](https://revilor.github.io/MMU2-Marlin/debugging.html)
+- [Buddy Board Commands](https://help.prusa3d.com/article/buddy-firmware-specific-g-code-commands_633112)
 - [MMU2 LEDs Meaning](https://help.prusa3d.com/article/mmu2s-leds-meaning_2187#red-light)
 - [Octoprint Plugin Docs](https://docs.octoprint.org/en/master/plugins/mixins.html)
