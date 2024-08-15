@@ -34,6 +34,8 @@ $(() => {
     let isActiveTab = true;
     // Track if we've loaded the filament or not. Useful for spool managers that are slow to load.
     self.filamentRetryCount = 0;
+    self._prusaVersion;
+    self._overrideFilament = "";
     // Keep track so we can refresh if needed
     self._toolId = 0;
     self._previousToolId = 0;
@@ -334,7 +336,7 @@ $(() => {
     /**
      * Used for the click event on the nav to open the plugin settings.
      */
-     self.openSettings = () => {
+    self.openSettings = () => {
       self.globalSettings.show();
       self.globalSettings.selectTab("#settings_plugin_prusammu");
     };
@@ -423,6 +425,7 @@ $(() => {
      */
     const selectCallback = (index) => {
       log("selectCallback", index);
+      self._overrideFilament = index === "skip" ? "" : index;
       return OctoPrint.simpleApiCommand(PLUGIN_NAME, "select", { choice: index });
     };
 
@@ -446,15 +449,19 @@ $(() => {
         selections[f.index] = drawSelectOption(f);
       });
 
+      // Add the skip option at the bottom.
+      if (self._prusaVersion !== "MK3") {
+        selections["skip"] = "Skip (No filament override)";
+      }
+
       const opts = {
         title: gettext("Prusa MMU"),
         message: gettext(`Select the filament spool: (From ${self.settings.filamentSource()})`),
         selections: selections,
         maycancel: true,
         onselect: (index) => {
-          if (index > -1) {
-            selectCallback(index);
-          }
+          log("Selection:", index);
+          selectCallback(index);
         },
         onclose: () => {
           self.modal = undefined;
@@ -490,7 +497,10 @@ $(() => {
           closeModal();
           break;
         case "nav":
-         updateNav(data.state, data.tool, data.previousTool, data.response, data.responseData);
+          updateNav(data.state, data.tool, data.previousTool, data.response, data.responseData);
+          if (data.prusaVersion) {
+            self._prusaVersion = data.prusaVersion;
+          }
           break;
         // case "debug": these just exist to get logged and we do that above.
       }
@@ -515,11 +525,19 @@ $(() => {
     };
 
     /**
-     * Called when the user opens the settings menu. This is when we bind the color pickers.
+     * Called when the user opens the settings menu. This is when we bind the color pickers and 
+     * show / hide the printer specific messages.
      */
     self.onSettingsShown = () => {
       bindPickers();
       showError();
+      if (self._prusaVersion === "MK3") {
+        $("#settings_plugin_prusammu .mk4").addClass("hide");
+        $("#settings_plugin_prusammu .mk3").removeClass("hide");
+      } else if (self._prusaVersion !== null && self._prusaVersion !== "MK3") {
+        $("#settings_plugin_prusammu .mk3").addClass("hide");
+        $("#settings_plugin_prusammu .mk4").removeClass("hide");
+      }
     };
 
     /**

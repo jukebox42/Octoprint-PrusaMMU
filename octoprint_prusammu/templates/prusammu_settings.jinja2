@@ -6,8 +6,9 @@
     <p><a id="prusammu_error_url" href="#" target="_blank">URL</a></p>
   </div>
 </div>
-<div class="alert alert-block">
-  <p><i class="fas fa-warning"></i> <strong>MK3.5/3.9/4</strong> is not yet supported for single filament prints.</p>
+<div class="alert alert-block hide mk4">
+  <p><i class="fas fa-warning"></i> <strong>MK3.5/3.9/4</strong></p>
+  <p>You MUST use the MMU3 profile for single filament prints. Slicing without MMU will not work with this plugin. The popup will rewrite all filament to the chosen one. For multi-mode use the skip button.</p>
 </div>
 <form class="form-horizontal">
   <h3>{{ _("Filament") }}</h3>
@@ -95,6 +96,7 @@
         optionsCaption: 'Choose...'
       "></select>
       <span class="help-block">{{ _("Check if you want octoprint to default to a specific filament when the dialog times out.") }}</span>
+      <span class="help-block hide mk4"><i class="fas fa-warning"></i> {{ _("Does not work for MK3.5/3.9/4 users because of how single select works.") }}</span>
     </div>
   </div>
 
@@ -149,6 +151,18 @@
       <div class="control-group">
         <div class="controls">
           <label class="checkbox">
+            <input type="checkbox" data-bind="checked: settings.plugins.prusammu.enablePrompt" />
+            {{ _("Enable Filament Prompt") }}
+          </label>
+          <span class="help-block">{{ _("Disable this if you do not want the plugin to prompt you to pick a filament when slicing with single print mode.") }}</span>
+          <p class="hide mk3"><strong>MK3: You will have to select the filament on your printer..</strong></p>
+          <p class="hide mk4"><strong>MK3.5/3.9/4: It will print with the sliced filament when disabled.</strong></p>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="controls">
+          <label class="checkbox">
             <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
             {{ _("Index at zero") }}
           </label>
@@ -184,6 +198,8 @@
               <p>This feature will <strong>ONLY</strong> tell the MMU what filament to load when it sees a specific T# command. It <strong>WILL NOT</strong> make temperature decisions, the printer will follow the temperatures defined in the GCode of the print regardless of what filament is being loaded. Make sure you are always replacing the filament with the same type (like PLA -> PLA, PETG -> PETG, etc) as defined in the GCode. So don't take a GCode sliced for PLA filament and map it to a tool using PETG, it will use the temperature for the PLA! This setting is only used on GCode sliced in multi mode and will be ignored for single mode prints.</p>
               
               <p>Use at your own risk.</p>
+
+              <p class="hide mk4"><strong>MK3.5/3.9/4: This feature will not work in single print mode.</strong></p>
             </div>
           </div>
         </div>
