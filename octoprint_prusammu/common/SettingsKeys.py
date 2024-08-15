@@ -15,3 +15,4 @@ class SettingsKeys():
   FILAMENT="filament"
   FILAMENT_MAP="filamentMap"
   USE_FILAMENT_MAP="useFilamentMap"
+  ENABLE_PROMPT="enablePrompt"
