@@ -131,6 +131,8 @@ events and printer notifications, so it can update the navbar: (`gcode_received_
    "Awaiting user input" until the next tool change.
 1. If the Prusa printer prompts the user for a "new version", the select filament modal may not
    display. You will still be able to select the filament directly on the printer.
+1. `MK3` printers will look like `MK3S` in the debug logs. They operate the same, this was easier
+   to implement.
 
 ## Developer Zone
 
@@ -390,6 +392,9 @@ Examples:
 
 I built this plugin for fun, and because I wanted better MMU support. If you catch a bug or think it
 needs some work feel free to open a PR or cut an issue, and I'll do my best to review it.
+
+You know how some software grows organically and by the time you realize it's gotten out of control
+it's too late? Yeah that's this. Sorry in advance for those of you trying to parse the code.
 
 Special thanks to:
 - [@skellied](https://github.com/skellied) for help with the initial release of MMU 3.0.0 support.
