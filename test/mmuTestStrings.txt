@@ -58,3 +58,32 @@ Note: Make sure you don't send the *XX at the end of lines. Virtual printer lose
 ===== MK3.5/3.9/4 & MMU 2: 3.0.0 =====
 ======================================
 
+# Set tool
+T0
+
+# Start Loading
+!!DEBUG:send MMU2:Feeding to FINDA
+
+# Loading extruder
+!!DEBUG:send MMU2:Feeding to extruder
+
+# Loading to tool sensor
+!!DEBUG:send MMU2:Feeding to FSensor
+
+# Loading done (after it sees one of the loadings)
+!!DEBUG:send MMU2:Disengaging idler
+
+# Send a new tool (for the change below)
+T1
+
+# Changing tools (unloading)
+!!DEBUG:send MMU2:Unloading to FINDA
+
+# Unloading done (after it sees unloading, send loading after this)
+!!DEBUG:send MMU2:Disengaging idler
+
+# Unloading (final unload)
+!!DEBUG:send MMU2:Retract from FINDA
+
+# Unloading done (after it sees one of the unloading)
+!!DEBUG:send MMU2:Disengaging idler
