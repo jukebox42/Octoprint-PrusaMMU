@@ -133,6 +133,8 @@ events and printer notifications, so it can update the navbar: (`gcode_received_
    display. You will still be able to select the filament directly on the printer.
 1. `MK3` printers will look like `MK3S` in the debug logs. They operate the same, this was easier
    to implement.
+1. If the plugin is having trouble detecting the version of Prusa you have, use `Prusa Version` 
+   option in settings to fix it to a version.
 
 ## Developer Zone
 

@@ -8,7 +8,6 @@ class MachineType():
   MK3_5="MK3.5"
   MK3_9="MK3.9"
   MK4="MK4"
-  MK4S="MK4S"
 
   # Print Profile (or the profile of the printer in the gcode)
 class PrusaProfile():
@@ -23,7 +22,7 @@ def detect_connection_profile(machine_type):
     return PrusaProfile.MK3_5
   if MachineType.MK3_9 in machine_type:
     return PrusaProfile.MK3_9
-  if MachineType.MK4S in machine_type or MachineType.MK4 in machine_type:
+  if MachineType.MK4 in machine_type:
     return PrusaProfile.MK4
   # Fallback to the MK3
   return PrusaProfile.MK3

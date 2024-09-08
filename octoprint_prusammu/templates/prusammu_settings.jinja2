@@ -11,6 +11,7 @@
   <p>You MUST use the MMU3 profile for single filament prints. Slicing without MMU will not work with this plugin. The popup will rewrite all filament to the chosen one. For multi-mode use the skip button.</p>
 </div>
 <form class="form-horizontal">
+
   <h3>{{ _("Filament") }}</h3>
 
   <div class="control-group">
@@ -129,6 +130,35 @@
         {{ _("Advanced display mode") }}
       </label>
       <span class="help-block">{{ _("Check to show more precise details about the MMU (Only works with 3.0.0).") }}</span>
+    </div>
+  </div>
+
+  <h3>Prusa</h3>
+
+  <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.prusaVersion() === ''">
+    <p><i class="fas fa-info-circle"></i> Detected Version: <span class="prusa-version">...</span></p>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label">{{ _("Prusa Version") }}</label>
+    <div class="controls">
+      <select data-bind="
+        options: [
+          {key: 'auto detect', value: ''},
+          {key: 'MK3', value: 'MK3'},
+          {key: 'MK3.5', value: 'MK3_5'},
+          {key: 'MK3.9', value: 'MK3_9'},
+          {key: 'MK4', value: 'MK4'},
+        ],
+        optionsText: function(opt) {
+          return opt.key;
+        },
+        optionsValue: function(opt) {
+          return opt.value;
+        },
+        value: settings.plugins.prusammu.prusaVersion,
+      "></select>
+      <span class="help-block">{{ _("Sometimes version detection can have trouble, you can lock the version with this setting. \"S\" versions operate the same as their non-\"S\" counterparts.") }}</span>
     </div>
   </div>
 
