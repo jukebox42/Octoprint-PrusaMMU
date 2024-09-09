@@ -59,6 +59,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       filamentMap=[],
       useFilamentMap=False,
       enablePrompt=True,
+      prusaVersion="",
     )
 
   # ======== Startup ========
@@ -216,13 +217,22 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def firmware_info_hook(self, comm_instance, firmware_name, firmware_data, *args, **kwargs):
    self._process_firmware(firmware_data["MACHINE_TYPE"])
 
-  def _process_firmware(self, machine_type):
-    # Figure out what Prusa version we are dealing with (defaults to MK3)
-    version = detect_connection_profile(machine_type)
-    self._log("firmware_info_hook: {}".format(version), obj=machine_type, debug=True)
-    
+  def _process_firmware(self, machine_type, force=False):
+    # Prevent detection and overwrite if it was already set (like from settings)
+    version = self.mmu[MmuKeys.PRUSA_VERSION]
+    if version == "" or version is None or force:
+      # If we tried to set it back to auto detect then we need to ask the printer again.
+      if machine_type == "" and force:
+        self._printer.commands("M115")
+        self.mmu[MmuKeys.PRUSA_VERSION] = None
+        return
+
+      # Figure out what Prusa version we are dealing with (defaults to MK3)
+      version = detect_connection_profile(machine_type)
+      self._log("_process_firmware: {}".format(version), obj=machine_type, debug=True)
+
     # MK4: The MMU doesn't tell us it's ok so if the printer has one assume it is.
-    if self.mmu[MmuKeys.PRUSA_VERSION] != PrusaProfile.MK3:
+    if version != PrusaProfile.MK3:
       self._fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.OK, prusaVersion=version))
       return
     
@@ -715,7 +725,8 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       ],
       filamentMap=[dict(id=0), dict(id=1), dict(id=2), dict(id=3), dict(id=4)],
       useFilamentMap=False,
-      enablePrompt=True
+      enablePrompt=True,
+      prusaVersion="",
     )
 
   def on_settings_save(self, data):
@@ -758,6 +769,10 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.config[SettingsKeys.FILAMENT_MAP] = self._settings.get([SettingsKeys.FILAMENT_MAP])
     self.config[SettingsKeys.ENABLE_PROMPT] = self._settings.get_boolean([
       SettingsKeys.ENABLE_PROMPT])
+
+    # handle overwriting the prusa version but don't rewrite if it's blank.
+    self.config[SettingsKeys.PRUSA_VERSION] = self._settings.get([SettingsKeys.PRUSA_VERSION])
+    self._process_firmware(self.config[SettingsKeys.PRUSA_VERSION].replace("_", "."), True)
 
   # ======== SoftwareUpdatePlugin ========
   # https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html

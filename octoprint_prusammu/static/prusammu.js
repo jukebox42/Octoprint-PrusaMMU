@@ -538,6 +538,7 @@ $(() => {
         $("#settings_plugin_prusammu .mk3").addClass("hide");
         $("#settings_plugin_prusammu .mk4").removeClass("hide");
       }
+      $("#settings_plugin_prusammu .prusa-version").text(self._prusaVersion ? self._prusaVersion.replace("_", ".") : "...");
     };
 
     /**
