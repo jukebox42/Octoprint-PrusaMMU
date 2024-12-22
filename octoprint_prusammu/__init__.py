@@ -81,6 +81,11 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         self._log("Found Spool Manager")
         sources.append(dict(name="Spool Manager", id="spoolManager"))
 
+      spoolMan = self._plugin_manager.get_plugin_info("Spoolman")
+      if spoolMan is not None and spoolMan.enabled:
+        self._log("Found Spool Man")
+        sources.append(dict(name="Spool Man", id="spoolMan"))
+
       self._settings.set([SettingsKeys.FILAMENT_SOURCES], sources)
       self._settings.save()
     except Exception as e:
