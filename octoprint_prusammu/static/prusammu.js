@@ -25,6 +25,7 @@ $(() => {
   const FILAMENT_SOURCE_NAMES = {
     SPOOL_MANAGER: "spoolManager",
     FILAMENT_MANAGER: "filamentManager",
+    SPOOL_MAN: "spoolMan",
   };
   const MAX_FILAMENT_RETRY = 5;
 
@@ -50,6 +51,7 @@ $(() => {
     self.filamentSources = {
       filamentManager: parameters[3], // filamentManagerViewModel
       spoolManager: parameters[4], // spoolManagerViewModel
+      spoolMan: parameters[5], // spoolmanSidebarViewModel
     };
     self.settings = {};
     self.modal = undefined;
@@ -620,6 +622,38 @@ $(() => {
         } catch(e) {
           console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolManager failed.", e);
         }
+      } else if (self.filamentSources.spoolMan !== null && self.settings.filamentSource() === FILAMENT_SOURCE_NAMES.SPOOL_MAN) {
+        const getSpoolManColor = (f) => {
+          if (f.color_hex) {
+            return `#${f.color_hex.replace("#","")}`;
+          }
+          if (f.multi_color_hexes) {
+            return `#${f.multi_color_hexes.split(",")[0].replace("#","")}`;
+          }
+          return "#999999";
+        }
+
+        filament = [];
+
+        try {
+          const spools = self.filamentSources.spoolMan.templateData.selectedSpoolsByToolIdx();
+          spools?.forEach((spool, i) => {
+            if (!spool?.spoolData?.filament) {
+              return;
+            }
+            const data = spool.spoolData.filament;
+            filament.push({
+              enabled: true,
+              id: i + 1,
+              index: i,
+              name: data.name,
+              type: data.material || "",
+              color: getSpoolManColor(data),
+            });
+          });
+        } catch(e) {
+          console.error("Create a github issue with the following:", "prusammu Error: getFilament SpoolMan failed.", e);
+        }
       }
 
       // Catchall if we got zero back, default to showing something.
@@ -668,7 +702,7 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayColor = (filament) => {
-      return filament && filament.color ? filament.color : "inherited";
+      return filament && filament.color ? filament.color : "#999999";
     }
 
     /* =============================
@@ -789,9 +823,9 @@ $(() => {
     construct: PrusaMMU2ViewModel,
     dependencies: [
       "settingsViewModel","loginStateViewModel", "printerStateViewModel",
-      "filamentManagerViewModel","spoolManagerViewModel"
+      "filamentManagerViewModel","spoolManagerViewModel", "spoolmanSidebarViewModel",
     ],
-    optional: ["filamentManagerViewModel","spoolManagerViewModel"],
+    optional: ["filamentManagerViewModel","spoolManagerViewModel", "spoolmanSidebarViewModel"],
     elements: ["#navbar_plugin_prusammu"]
   });
 });

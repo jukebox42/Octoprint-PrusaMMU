@@ -22,8 +22,9 @@ or manually by selecting the latest zip:
 - (Optional) Default to a filament if none are selected
 - On single color prints, shows a modal to select the filament within Octoprint
 - Displays an error popup when the MMU throws an error (Not supported by the MK4)
-- Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/)
-  and [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/) if installed.
+- Supports retrieving filament data from [Spool Manager](https://plugins.octoprint.org/plugins/SpoolManager/),
+  [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/), and
+  [Spool Man](https://plugins.octoprint.org/plugins/Spoolman/) if installed.
 - Allows remapping of tools to other tools.
 
 ## Screenshots
@@ -281,8 +282,8 @@ Filament object properties:
   on myself)
 - `index` - The real index of the filament (tool) as the printer would see it.
 - `name` - The name the user gave the filament.
-- `type` - The type of filament (i.e. PLA/PETG). This is blank unless the source is filamentManager
-  or spoolManager.
+- `type` - The type of filament (i.e. PLA/PETG). This is blank unless the source is filamentManager,
+  spoolManager, or spoolMan.
 - `color` - The color of the filament.
 - `enabled` Whether the filament is enabled in prusammu (when using prusammu as the source).
 
