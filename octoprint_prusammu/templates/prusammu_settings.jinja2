@@ -41,6 +41,10 @@
         <p><strong>Filament Manager:</strong><br /> {{ _("To manage filament use the Filament Manager section in the left sidebar.") }}</p>
         <p>{{ _("Note: FilamentManager does not support color so no color will be shown.") }}</p>
       </div>
+
+      <div class="alert alert-block" data-bind="visible: settings.plugins.prusammu.filamentSource() == 'spoolMan'">
+        <p><strong>Spool Man:</strong><br /> {{ _("To manage filament use the Spool Man section in the left sidebar.") }}</p>
+      </div>
     </div>
   </div>
 
