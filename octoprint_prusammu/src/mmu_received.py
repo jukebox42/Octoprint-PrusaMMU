@@ -1,7 +1,7 @@
 from re import search
 
 from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU3Codes, \
-  MMU3RequestCodes, MMU3ResponseCodes, MMU3MK4Commands, DEFAULT_MMU_STATE
+  MMU3RequestCodes, MMU3ResponseCodes, MMU3MK4Commands
 
 def mk4_gcode_received(mmu, lastMmuAction, line):
   # The MK4 is less verbose. To try and fill that gap we're faking the response and responseData
@@ -21,7 +21,7 @@ def mk4_gcode_received(mmu, lastMmuAction, line):
 
   # Paused
   if MMU3MK4Commands.PAUSED_USER in line:
-    ret.lastAction = MmuStates.PAUSED_USER
+    ret["lastAction"] = MmuStates.PAUSED_USER
     # The printer will spam pause messages, so ignore them if we're already paused
     if mmu[MmuKeys.STATE] == MmuStates.PAUSED_USER:
       return ret
@@ -158,6 +158,10 @@ def mk4_gcode_received(mmu, lastMmuAction, line):
   return ret
 
 def mk3_gcode_received(mmu, line):
+  ret = dict(
+    action=None,
+  )
+
   # MMU2 3.0.0
   # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_progress_converter.cpp#L8
   # https://github.com/prusa3d/Prusa-Firmware/blob/d84e3a9cf31963b9378b9cf39cd3dd4c948a05d6/Firmware/mmu2_protocol_logic.cpp
@@ -166,8 +170,9 @@ def mk3_gcode_received(mmu, line):
     # If this line is the same as the previously seen one, ignore it and return immediately,
     # otherwise it's new, so continue
     if mmu[MmuKeys.LAST_LINE] == line:
-      return
-    mmu[MmuKeys.LAST_LINE] = line
+      return ret
+    ret[MmuKeys.LAST_LINE] = line
+
     # Search the line. This creates 4 matched groups. 
     # Group 1 is a single letter request code. Group 2 is the request data in hexidecimal
     # Group 3 is a single letter response code. Group 4 is the response data in hexidecimal.
@@ -184,88 +189,117 @@ def mk3_gcode_received(mmu, line):
       mmu[MmuKeys.STATE] == MmuStates.ATTENTION and
       matchedCommand.group(3) == MMU3ResponseCodes.ERROR
     ):
-      _fire_event(PluginEventKeys.MMU_CHANGE,
-                        dict(state=MmuStates.ATTENTION, response=matchedCommand.group(3),
-                            responseData=matchedCommand.group(4)))
-      return
+      return ret.update({
+        "action": "update",
+        "state": MmuStates.ATTENTION,
+        "response": matchedCommand.group(3),
+        "responseData": matchedCommand.group(4),
+      })
 
     # Load filament to nozzle
     if matchedCommand.group(1) == MMU3RequestCodes.TOOL:
       # Loading Finished, Printer is now loaded. Clear previous tool
       if matchedCommand.group(3) == MMU3ResponseCodes.FINISHED:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.LOADED, previousTool="",
-                              response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.LOADED,
+          "previousTool": "",
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
       # Still Loading
       else:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.LOADING, tool=matchedCommand.group(2),
-                              response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
-      return
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.LOADING,
+          "tool": matchedCommand.group(2),
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
     # Preload filament to mmu
     elif matchedCommand.group(1) == MMU3RequestCodes.LOAD:
       # Preload Finished, Printer is now idle
       if matchedCommand.group(3) == MMU3ResponseCodes.FINISHED:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.OK, response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.OK,
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
       # Preload in progress
       else:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.LOADING_MMU, tool=matchedCommand.group(2),
-                              response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
-      return
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.LOADING_MMU,
+          "tool": matchedCommand.group(2),
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
     # Unload Filament from Nozzle NOTE: Doesn't give us any tool info, so rely on T# commands to
     # give us current and previous tool info
     elif matchedCommand.group(1) == MMU3RequestCodes.UNLOAD:
       # Unload Finished, Printer is now idle
       if matchedCommand.group(3) == MMU3ResponseCodes.FINISHED:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.OK, response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.OK,
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
       # Unload in progress
       else:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.UNLOADING, response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
-      return
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.UNLOADING,
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
     # Printer Reset, Shows up after power on
     elif matchedCommand.group(1) == MMU3RequestCodes.RESET:
-      _fire_event(PluginEventKeys.MMU_CHANGE,
-                        dict(state=MmuStates.OK, response=matchedCommand.group(3),
-                            responseData=matchedCommand.group(4)))
-      return
+      return ret.update({
+        "action": "update",
+        "state": MmuStates.OK,
+        "response": matchedCommand.group(3),
+        "responseData": matchedCommand.group(4),
+      })
     # Cut Filament
     elif matchedCommand.group(1) == MMU3RequestCodes.CUT:
       # Cutting finished, Printer is now idle
       if matchedCommand.group(3) == MMU3ResponseCodes.FINISHED:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.OK, response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.OK,
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
       # Cutting in progress
       else:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.CUTTING, tool=matchedCommand.group(2),
-                              response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
-      return
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.CUTTING,
+          "tool": matchedCommand.group(2),
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
     # Eject Filament
     elif matchedCommand.group(1) == MMU3RequestCodes.EJECT:
       # Ejecting finished, Printer is now idle
       if matchedCommand.group(3) == MMU3ResponseCodes.FINISHED:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.OK, response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.OK,
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
       # Ejecting in progress
       else:
-        _fire_event(PluginEventKeys.MMU_CHANGE,
-                          dict(state=MmuStates.EJECTING, tool=matchedCommand.group(2),
-                              response=matchedCommand.group(3),
-                              responseData=matchedCommand.group(4)))
-      return
+        return ret.update({
+          "action": "update",
+          "state": MmuStates.EJECTING,
+          "tool": matchedCommand.group(2),
+          "response": matchedCommand.group(3),
+          "responseData": matchedCommand.group(4),
+        })
 
   # Catch other MMU3 lines not caught by regex
   # ATTENTION. Some errors spam one of these lines, so deduplicate them here. It's possible some
@@ -274,12 +308,16 @@ def mk3_gcode_received(mmu, line):
     (MMU3Codes.SAVING_PARKING in line or MMU3Codes.COOLDOWN_PENDING in line) and
     mmu[MmuKeys.STATE] != MmuStates.ATTENTION
   ):
+    return ret.update({
+      "action": "update",
+      "state": MmuStates.ATTENTION,
+    })
     _fire_event(PluginEventKeys.MMU_CHANGE, dict(state=MmuStates.ATTENTION))
   # PAUSED_USER is caught in the MMU2 section early on in this function, but we need to recover
   # from it if the MMU's response is the same as LAST_LINE
   elif mmu[MmuKeys.STATE] == MmuStates.PAUSED_USER and MMU3Codes.LCD_CHANGED in line:
     # If detected, blank out LAST_LINE. The next mmu response in the log will trigger again and
     # change the state away from PAUSED_USER
-    mmu[MmuKeys.LAST_LINE] = ""
+    ret[MmuKeys.LAST_LINE] = line
 
-  return
+  return ret
