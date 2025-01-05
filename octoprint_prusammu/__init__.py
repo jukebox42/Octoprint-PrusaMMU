@@ -25,7 +25,7 @@ TIMEOUT_TAG = "{}timeout".format(TAG_PREFIX)
 FILAMENT_SOURCE_DEFAULT = [
   dict(name="Prusa MMU", id=PLUGIN_NAME),
 ]
-TOOL_REGEX = r"^T(\d)"
+TOOL_REGEX = r"^T(\d+)"
 
 
 class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
@@ -57,6 +57,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       filamentSource=PLUGIN_NAME,
       filamentSources=[],
       filamentMap=[],
+      filamentCount=5,
       useFilamentMap=False,
       enablePrompt=True,
       prusaVersion="",
@@ -126,7 +127,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         return abort(409, "No active prompt")
 
       choice = data["choice"]
-      if choice != "skip" and not (int(choice) < 5 or int(choice) >= 0):
+      if choice != "skip" and not (int(choice) < self.config[SettingsKeys.FILAMENT_COUNT] or int(choice) >= 0):
         return abort(400, "{} is not a valid value for filament choice".format(choice+1))
 
       self._log("on_api_command T{}".format(choice), debug=True)
@@ -582,10 +583,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
   def gcode_sent_hook(self, comm, phase, cmd, cmd_type, gcode,
                       subcode=None, tags=None, *args, **kwarg):
     # only react to tool change commands
-    if (
-      not cmd.startswith("T0") and not cmd.startswith("T1") and not cmd.startswith("T2")
-      and not cmd.startswith("T3") and not cmd.startswith("T4") 
-    ):
+    if not search(TOOL_REGEX, cmd):
       return
 
     # Catch when the gcode sends a tool number, this happens when it's set to print in multi
@@ -728,6 +726,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
         dict(name="", color="", enabled=True, id=4),
         dict(name="", color="", enabled=True, id=5),
       ],
+      filamentCount=5,
       filamentMap=[dict(id=0), dict(id=1), dict(id=2), dict(id=3), dict(id=4)],
       useFilamentMap=False,
       enablePrompt=True,
@@ -746,7 +745,29 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     except:
       data[SettingsKeys.TIMEOUT] = DEFAULT_TIMEOUT
 
-    self._log("on_settings_save", debug=True)
+    if SettingsKeys.FILAMENT_COUNT not in data:
+      data[SettingsKeys.FILAMENT_COUNT] = self._settings.get_int([SettingsKeys.FILAMENT_COUNT])
+    data[SettingsKeys.FILAMENT_COUNT] = int(data[SettingsKeys.FILAMENT_COUNT])
+
+    if SettingsKeys.FILAMENT not in data:
+      data[SettingsKeys.FILAMENT] = self._settings.get([SettingsKeys.FILAMENT])
+
+    if SettingsKeys.FILAMENT_MAP not in data:
+      data[SettingsKeys.FILAMENT_MAP] = self._settings.get([SettingsKeys.FILAMENT_MAP])
+
+    # Check if the filament count was changed and adjust the filament list length accordingly
+    filamentCount = len(data[SettingsKeys.FILAMENT])
+    if filamentCount != data[SettingsKeys.FILAMENT_COUNT]:
+      for i in range(data[SettingsKeys.FILAMENT_COUNT]):
+        if i >= filamentCount:
+          data[SettingsKeys.FILAMENT].append(dict(name="", color="", enabled=True, id=i+1))
+          data[SettingsKeys.FILAMENT_MAP].append(dict(id=i))
+
+      # trim down the list to the correct length
+      data[SettingsKeys.FILAMENT] = data[SettingsKeys.FILAMENT][:data[SettingsKeys.FILAMENT_COUNT]]
+      data[SettingsKeys.FILAMENT_MAP] = data[SettingsKeys.FILAMENT_MAP][:data[SettingsKeys.FILAMENT_COUNT]]
+
+    self._log("on_settings_save", data, debug=True)
 
     # save settings
     octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
@@ -774,6 +795,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
     self.config[SettingsKeys.FILAMENT_MAP] = self._settings.get([SettingsKeys.FILAMENT_MAP])
     self.config[SettingsKeys.ENABLE_PROMPT] = self._settings.get_boolean([
       SettingsKeys.ENABLE_PROMPT])
+    self.config[SettingsKeys.FILAMENT_COUNT] = self._settings.get_int([SettingsKeys.FILAMENT_COUNT])
 
     # handle overwriting the prusa version but don't rewrite if it's blank.
     self.config[SettingsKeys.PRUSA_VERSION] = self._settings.get([SettingsKeys.PRUSA_VERSION])

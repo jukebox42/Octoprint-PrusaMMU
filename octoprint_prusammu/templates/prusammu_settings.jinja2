@@ -100,7 +100,7 @@
         value: settings.plugins.prusammu.defaultFilament,
         optionsCaption: 'Choose...'
       "></select>
-      <span class="help-block">{{ _("Check if you want octoprint to default to a specific filament when the dialog times out.") }}</span>
+      <span class="help-block">{{ _("Check if you want Octoprint to default to a specific filament when the dialog times out.") }}</span>
       <span class="help-block hide mk4"><i class="fas fa-warning"></i> {{ _("Does not work for MK3.5/3.9/4 users because of how single select works.") }}</span>
     </div>
   </div>
@@ -200,7 +200,7 @@
             <input type="checkbox" data-bind="checked: settings.plugins.prusammu.indexAtZero" />
             {{ _("Index at zero") }}
           </label>
-          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual GCode refrence them as 0-4.") }}</span>
+          <span class="help-block">{{ _("Check to have the filament numbers be 0-4 instead of 1-5. Plugins like Spool Manager as well as the actual GCode reference them as 0-4.") }}</span>
         </div>
       </div>
 
@@ -260,6 +260,17 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">{{ _("Filament Count") }}</label>
+        <div class="controls">
+          <div class="input-append">
+            <input type="number" min="1" pattern="[0-9]+" class="input-mini text-right" class="input-block-level" data-bind="value: settings.plugins.prusammu.filamentCount">
+          </div>
+          <span class="help-block">{{ _("The number of filament on your MMU unit. Only change this if you have modded your MMU to have more or less filament. The default is 5.") }}</span>
+          <span class="help-block">{{ _("To use this setting. Set the number to the correct filament count, save it. Then come back into settings to see the new filament slots available.") }}</span>
         </div>
       </div>
 
