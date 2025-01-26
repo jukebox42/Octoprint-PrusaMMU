@@ -632,7 +632,7 @@ $(() => {
           if (f.multi_color_hexes) {
             return `#${f.multi_color_hexes.split(",")[0].replace("#","")}`;
           }
-          return "#C0C0C0";
+          return "#999999";
         }
 
         filament = [];
@@ -701,7 +701,7 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayColor = (filament) => {
-      return filament && filament.color ? filament.color : "#C0C0C0";
+      return filament && filament.color ? filament.color : "#999999";
     }
 
     /* =============================
