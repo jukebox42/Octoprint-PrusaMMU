@@ -247,8 +247,8 @@ $(() => {
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
      */
     const updateNav = (state, tool, previousTool, response, responseData) => {
-      const toolId = parseInt(tool, 10);
-      const previousToolId = parseInt(previousTool, 10);
+      const toolId = parseInt(tool, 16); // tool numbers are 16 bit from Prusa
+      const previousToolId = parseInt(previousTool, 16); // tools are 16 bit from Prusa
       // Remember these, we may need them again
       self._toolId = toolId;
       self._previousToolId = previousToolId;
@@ -632,7 +632,7 @@ $(() => {
           if (f.multi_color_hexes) {
             return `#${f.multi_color_hexes.split(",")[0].replace("#","")}`;
           }
-          return "#999999";
+          return "#C0C0C0";
         }
 
         filament = [];
@@ -701,7 +701,7 @@ $(() => {
      *                                                              the tool (see getFilamentList())
      */
     const getFilamentDisplayColor = (filament) => {
-      return filament && filament.color ? filament.color : "#999999";
+      return filament && filament.color ? filament.color : "#C0C0C0";
     }
 
     /* =============================
@@ -745,7 +745,7 @@ $(() => {
       ];
       $("#settings_plugin_prusammu .color-dropdown").each((index, element) => {
         $(element).colorPick({
-          initialColor: self.settings.filament()[index].color(),
+          initialColor: self.settings.filament()[index].color() || "#C0C0C0",
           paletteLabel: gettext("Filament color:"),
           customLabel: gettext("Custom color:"),
           recentLabel: gettext("Recent color:"),
