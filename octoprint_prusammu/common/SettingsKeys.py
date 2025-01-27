@@ -14,6 +14,7 @@ class SettingsKeys():
   FILAMENT_SOURCES="filamentSources"
   FILAMENT="filament"
   FILAMENT_MAP="filamentMap"
+  FILAMENT_COUNT="filamentCount"
   USE_FILAMENT_MAP="useFilamentMap"
   ENABLE_PROMPT="enablePrompt"
   PRUSA_VERSION="prusaVersion"

@@ -247,8 +247,8 @@ $(() => {
      * @param {string} previousTool - The previous tool id. It _might_ have a T so we strip it here
      */
     const updateNav = (state, tool, previousTool, response, responseData) => {
-      const toolId = parseInt(tool, 10);
-      const previousToolId = parseInt(previousTool, 10);
+      const toolId = parseInt(tool, 16); // tool numbers are 16 bit from Prusa
+      const previousToolId = parseInt(previousTool, 16); // tools are 16 bit from Prusa
       // Remember these, we may need them again
       self._toolId = toolId;
       self._previousToolId = previousToolId;
@@ -352,9 +352,10 @@ $(() => {
      *                                                                 (see getFilamentList())
      */
     self.delayedRefreshNav = (filamentList) => {
+      const filamentCount = parseInt(self.settings.filamentCount(), 10);
       if (
         self.filamentRetryCount++ >= MAX_FILAMENT_RETRY ||
-        (filamentList.length >= 5 && !filamentList.includes(null))
+        (filamentList.length >= filamentCount && !filamentList.includes(null))
       ) {
         return;
       }
@@ -566,6 +567,7 @@ $(() => {
      */
     self.getFilamentList = () => {
       let filament = [];
+      const filamentCount = parseInt(self.settings.filamentCount(), 10);
       filament = self.settings.filament().map(f => {
         return {
           enabled: f.enabled(),
@@ -584,7 +586,7 @@ $(() => {
         try {
           const spools = self.filamentSources.filamentManager.selectedSpools();
           spools?.forEach((spool, i) => {
-            if (!spool || i >= 5) {
+            if (!spool || i >= filamentCount) {
               return;
             }
             filament.push({
@@ -658,13 +660,10 @@ $(() => {
 
       // Catchall if we got zero back, default to showing something.
       if (filament.length === 0) {
-        filament = [
-          {id: 1, index: 0, name: "", type: "", color: "", enabled: true},
-          {id: 2, index: 1, name: "", type: "", color: "", enabled: true},
-          {id: 3, index: 2, name: "", type: "", color: "", enabled: true},
-          {id: 4, index: 3, name: "", type: "", color: "", enabled: true},
-          {id: 5, index: 4, name: "", type: "", color: "", enabled: true},
-        ];
+        filament = [];
+        for (const i = 0; i < parseInt(self.settings.filamentCount(), 10); i++) {
+          filament.push({id: i + 1, index: i, name: "", type: "", color: "", enabled: true});
+        }
         log("getFilament fallback", filament);
       }
 
@@ -746,7 +745,7 @@ $(() => {
       ];
       $("#settings_plugin_prusammu .color-dropdown").each((index, element) => {
         $(element).colorPick({
-          initialColor: self.settings.filament()[index].color(),
+          initialColor: self.settings.filament()[index].color() || "#C0C0C0",
           paletteLabel: gettext("Filament color:"),
           customLabel: gettext("Custom color:"),
           recentLabel: gettext("Recent color:"),
