@@ -21,9 +21,9 @@
   $.colorPick = function (element, options) {
     options = options || {};
     this.settings = $.extend({}, $.fn.colorPick.defaults, options);
-    this.settings.palette = this.settings.palette.map(x => x.toUpperCase());
+    this.settings.palette = this.settings.palette.map(x => x?.toUpperCase() || "#C0C0C0");
 
-    this.color   = this.settings.initialColor.toUpperCase();
+    this.color   = this.settings.initialColor?.toUpperCase() || "#C0C0C0";
     this.element = $(element);
 
     return this.element.hasClass(PICKER_CLASS) ? this : this.init();
@@ -89,7 +89,7 @@
     },
 
     appendToStorage: function(color) {
-      color = color.toUpperCase();
+      color = color?.toUpperCase() || "#C0C0C0";
       if (
         this.settings.allowRecent === false ||
         this.settings.palette.find(c => c === color)
