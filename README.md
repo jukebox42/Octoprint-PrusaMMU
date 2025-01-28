@@ -26,6 +26,7 @@ or manually by selecting the latest zip:
   [Filament Manager](https://plugins.octoprint.org/plugins/filamentmanager/), and
   [Spool Man](https://plugins.octoprint.org/plugins/Spoolman/) if installed.
 - Allows remapping of tools to other tools.
+- Supports modified MMUs with more than 5 filament.
 
 ## Screenshots
 
@@ -410,6 +411,9 @@ Special thanks to:
   - [@jshank](https://github.com/jshank)
   - [@Kjubyte](https://github.com/Kjubyte)
   - [@MysticGringo](https://github.com/MysticGringo) - For testing so, so many version.
+- For help with supporting more than 5 filament
+  - [@MysticGringo](https://github.com/MysticGringo)
+  - [@3d-gussner](https://github.com/3d-gussner)
 
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
