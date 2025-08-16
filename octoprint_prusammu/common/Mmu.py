@@ -41,7 +41,7 @@ DEFAULT_MMU_STATE = dict(
 # The MK3.5/3.9/4 regressed in what was available. We only get the basic commands now.
 # https://github.com/prusa3d/Prusa-Firmware/blob/28502a2b6e9084c91152385c51f2e2a640095877/Firmware/mmu2_progress_converter.cpp#L8
 class MMU3MK4Commands():
-  START_MATCH="MACHINE_TYPE:Prusa-MK(3\.5|3\.9|4)"
+  START_MATCH="MACHINE_TYPE:Prusa-(MK3\.5|MK3\.9|MK4|COREONE)"
   # PARKING="MMU2:Saving and parking" # not sure i need this one
   PAUSED_USER="MMU2:ERR Wait for User"
   # NOT_RESPONDING=""

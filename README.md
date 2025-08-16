@@ -1,13 +1,13 @@
 # Octoprint-PrusaMMU
 
-<span style="color:red">**For MK3.5/3.9/5 you cannot use single print profile. You MUST use use the
+<span style="color:red">**For MK3.5/3.9/4/CORE One you cannot use single print profile. You MUST use use the
 MMU profile with a single filament, what you pick doesn't matter, we will overwrite the filament
 with the tool you choose.**</span>
 
 **Description:** This plugin adds Prusa MMU support to OctoPrint. The active filament will be
 displayed in the navbar and you will be prompted to select which filament to use when slicing in
 "MMU Single" mode. Other settings are available to name each tool and set defaults. This plugin
-only works for Prusa printers with an MMU. Supports MK3s/3.5/3.9/4 MMU3 firmware  `3.X.X`.
+only works for Prusa printers with an MMU. Supports MK3s/3.5/3.9/4/CORE One MMU3 firmware  `3.X.X`.
 
 This plugin was inspired by the [MMU2filamentselect](https://plugins.octoprint.org/plugins/mmu2filamentselect/)
 plugin. I wanted to try and take it a step further.
@@ -60,7 +60,7 @@ The command interactions are as follows:
   - When the plugin notices a `T#` command it sets the tool internally, so it can be used to
     display. This is to support multicolor printing. This trigger is also used to show unloading.
 
-### MK3.5/3.9/4 MMU 3.X.X - Single Print
+### MK3.5/3.9/4/CORE One MMU 3.X.X - Single Print
 
 Note Prusa removed the single print profile which served a `Tx` we use to do the detection. We use
 something different for MK3.5+. <span style="color:red">**For MK3.5+ you cannot use single print
@@ -109,11 +109,11 @@ For all instances where command manipulation happens see `__init__.py` for `Gcod
 look at function `_timeout_prompt` where it handles unpausing the printer after the timer and either
 sending a `Tx` or `T#` if `useDefaultFilament` and `defaultFilament` settings are set.
 
-### MK3.5/3.9/4 MMU 3.X.X - MMU State Detection
+### MK3.5/3.9/4/CORE One MMU 3.X.X - MMU State Detection
 
 It listens to printer responses and does some substring matching. This is done to identify filament
 events and printer notifications, so it can update the navbar: (`gcode_received_hook`)
-- `MACHINE_TYPE:Prusa-MK(3\.5|3\.9|4)` - Used to detect if the printer is an MK3.5/3.9/4.
+- `MACHINE_TYPE:Prusa-(MK3\.5|MK3\.9|MK4|COREONE)` - Used to detect if the printer is an MK3.5/3.9/4/COREOne.
 - `MMU2:ERR Wait for User` - Paused for user. Used to show the printer needs attention.
 - `MMU2:Feeding to FINDA` - Indicates loading to the Finda.
 - `MMU2:Feeding to extruder` - Indicates loading to the Extruder.
@@ -414,6 +414,7 @@ Special thanks to:
 - For help with supporting more than 5 filament
   - [@MysticGringo](https://github.com/MysticGringo)
   - [@3d-gussner](https://github.com/3d-gussner)
+- [@Mercur13](https://github.com/Mercur13) for help testing CORE One support.
 
 ## Useful Link
 - [MMU2 Commands](https://cfl.prusa3d.com/display/PI3M3/MMU2+commands)
