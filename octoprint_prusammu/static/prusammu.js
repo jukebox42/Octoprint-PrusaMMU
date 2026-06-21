@@ -53,6 +53,7 @@ $(() => {
       spoolManager: parameters[4], // spoolManagerViewModel
       spoolMan: parameters[5], // spoolmanSidebarViewModel
     };
+    self.access = parameters[6]; // accessViewModel
     self.settings = {};
     self.modal = undefined;
 
@@ -445,6 +446,11 @@ $(() => {
      * Opens the modal and generated the filament options.
      */
     const showModal = () => {
+      if (!self.loginState.hasPermission(self.access.permissions.PLUGIN_PRUSAMMU_SELECT)) {
+        log("User lacks PLUGIN_PRUSAMMU_SELECT permission, skipping modal");
+        return;
+      }
+
       const selections = {};
       const filament = self.getFilamentList();
       filament.forEach(f => {
@@ -823,6 +829,7 @@ $(() => {
     dependencies: [
       "settingsViewModel","loginStateViewModel", "printerStateViewModel",
       "filamentManagerViewModel","spoolManagerViewModel", "spoolmanSidebarViewModel",
+      "accessViewModel",
     ],
     optional: ["filamentManagerViewModel","spoolManagerViewModel", "spoolmanSidebarViewModel"],
     elements: ["#navbar_plugin_prusammu"]

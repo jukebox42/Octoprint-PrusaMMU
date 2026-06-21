@@ -3,10 +3,11 @@ from __future__ import absolute_import, unicode_literals
 from threading import Timer
 from json import dumps
 from flask import abort, jsonify
+from flask_babel import gettext
 from re import search
 
 import octoprint.plugin
-from octoprint.server import user_permission
+from octoprint.access.permissions import Permissions, ADMIN_GROUP, USER_GROUP
 from octoprint.events import Events
 
 from octoprint_prusammu.common.Mmu import MmuStates, MmuKeys, MMU3Codes, \
@@ -97,6 +98,9 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   # ======== TemplatePlugin ========
 
+  def is_template_autoescaped(self):
+    return True
+
   def get_template_configs(self):
     return [
       dict(type="settings", custom_bindings=False)
@@ -109,8 +113,25 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
       js=["mmuErrors.js", "mmuProgress.js", "prusammu.js", "colorPick.js"],
       css=["prusammu.css", "colorPick.css"],
     )
+    
+  # ======== Permission hook ========    
+
+  def get_additional_permissions(self, *args, **kwargs):
+    return [
+    dict(
+        key="SELECT",
+        name="Select filament spool",
+        description=gettext("Allows to select the filament spool"),
+        roles=["user"],
+        dangerous=False,
+        default_groups=[ADMIN_GROUP, USER_GROUP]
+      )
+    ]
 
   # ======== SimpleApiPlugin ========
+
+  def is_api_protected(self):
+    return True
 
   def get_api_commands(self):
     return dict(
@@ -120,7 +141,7 @@ class PrusaMMUPlugin(octoprint.plugin.StartupPlugin,
 
   def on_api_command(self, command, data):
     if command == "select":
-      if not user_permission.can():
+      if not Permissions.PLUGIN_PRUSAMMU_SELECT.can():
         return abort(403, "Insufficient permissions")
 
       if self.states[StateKeys.ACTIVE] is False:
@@ -852,6 +873,7 @@ __plugin_name__ = "Prusa MMU"
 __plugin_pythoncompat__ = ">=3,<4"
 __plugin_implementation__ = PrusaMMUPlugin()
 __plugin_hooks__ = {
+  "octoprint.access.permissions": __plugin_implementation__.get_additional_permissions,
   "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.gcode_queuing_hook,
   "octoprint.comm.protocol.gcode.received": __plugin_implementation__.gcode_received_hook,
   "octoprint.comm.protocol.gcode.sent": __plugin_implementation__.gcode_sent_hook,
